@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - UANGIN Buku Kas</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/dashboard.css">
+</head>
+<body>
+  <!-- Navigation Header -->
+  <header>
+    <div class="container">
+      <h1 id="appLogo" aria-label="UANGIN">📊 UANGIN</h1>
+      <div class="header-actions">
+        <button class="nav-toggle" id="navToggle" aria-label="Buka menu">☰</button>
+        <button class="nav-toggle" id="themeToggle" aria-label="Toggle tema">🌓</button>
+      </div>
+      <nav id="mainNav">
+        <a href="/dashboard" class="active">Dashboard</a>
+        <a href="/pendapatan">+ Pendapatan</a>
+        <a href="/pengeluaran">- Pengeluaran</a>
+        <a href="/laporan">Laporan</a>
+        <a href="/kalender">Kalender</a>
+        <a href="/profil">Profil</a>
+        <a href="javascript:void(0)" onclick="logout()">Logout</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="container" style="padding-top: 24px; padding-bottom: 32px;">
+    <!-- Alert -->
+    <div id="alertContainer"></div>
+
+    <!-- Welcome -->
+    <div class="welcome-card" id="welcomeCard">
+      <div class="welcome-text">
+        <h2 id="welcomeName">Halo, Pengguna!</h2>
+        <p id="welcomeSubtitle">Lihat ringkasan keuangan Anda bulan ini.</p>
+      </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="dashboard-container">
+      <div class="stat-card income">
+        <div class="stat-label">Total Pendapatan</div>
+        <div class="stat-value" id="totalIncome">Rp 0</div>
+      </div>
+      <div class="stat-card expense">
+        <div class="stat-label">Total Pengeluaran</div>
+        <div class="stat-value" id="totalExpense">Rp 0</div>
+      </div>
+      <div class="stat-card balance">
+        <div class="stat-label">Saldo Akhir</div>
+        <div class="stat-value" id="netBalance">Rp 0</div>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <h3>Ringkasan Pendapatan vs Pengeluaran</h3>
+      </div>
+      <canvas id="incomeExpenseChart" height="120"></canvas>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+      <a href="/pendapatan" class="btn btn-secondary btn-block">
+        ↑ Tambah Pendapatan
+      </a>
+      <a href="/pengeluaran" class="btn btn-danger btn-block">
+        ↓ Tambah Pengeluaran
+      </a>
+      <button onclick="showEditModal()" class="btn btn-primary btn-block">
+        ✎ Edit Terakhir
+      </button>
+      <button onclick="undoLastTransaction()" class="btn btn-warning btn-block">
+        ↶ Undo Transaksi Terakhir
+      </button>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-container">
+      <div class="filter-item">
+        <label for="searchTransactions">Cari Transaksi</label>
+        <input type="search" id="searchTransactions" placeholder="Cari berdasarkan kategori, keterangan..." />
+      </div>
+      <div class="filter-item">
+        <label for="categoryFilter">Filter Kategori</label>
+        <select id="categoryFilter">
+          <option value="">Semua Kategori</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label for="sortTransactions">Urutkan</label>
+        <select id="sortTransactions">
+          <option value="date_desc">Terbaru</option>
+          <option value="amount_asc">Nominal (terkecil → terbesar)</option>
+          <option value="amount_desc">Nominal (terbesar → terkecil)</option>
+        </select>
+      </div>
+      <div class="filter-item filter-actions">
+        <button class="btn btn-light" id="clearFiltersBtn">Reset</button>
+      </div>
+    </div>
+
+    <!-- Transactions Section -->
+    <div class="transactions-section">
+      <div class="transactions-header">
+        <h2>Daftar Transaksi</h2>
+        <div class="period-selector">
+          <select id="monthSelector" onchange="loadTransactions()">
+            <option value="1">Januari</option>
+            <option value="2">Februari</option>
+            <option value="3">Maret</option>
+            <option value="4">April</option>
+            <option value="5">Mei</option>
+            <option value="6">Juni</option>
+            <option value="7">Juli</option>
+            <option value="8">Agustus</option>
+            <option value="9">September</option>
+            <option value="10">Oktober</option>
+            <option value="11">November</option>
+            <option value="12">Desember</option>
+          </select>
+          <select id="yearSelector" onchange="loadTransactions()">
+            <option value="2024">2024</option>
+            <option value="2025">2025</option>
+            <option value="2026">2026</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="transactions-list" id="transactionsList">
+        <div class="empty-state">
+          <div class="empty-state-icon">📝</div>
+          <p>Belum ada transaksi</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Confirmation Modal -->
+  <div class="modal" id="confirmModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="confirmTitle">Konfirmasi</h3>
+        <button onclick="closeConfirmModal()" class="btn btn-light btn-sm" style="border: none; background: none; cursor: pointer;">✕</button>
+      </div>
+      <div class="modal-body" id="confirmMessage">
+        Apakah Anda yakin?
+      </div>
+      <div class="modal-footer">
+        <button onclick="closeConfirmModal()" class="btn btn-light">Batal</button>
+        <button onclick="confirmAction()" class="btn btn-danger" id="confirmBtn">Hapus</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div class="modal" id="editModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Edit Transaksi Terakhir</h3>
+        <button onclick="closeEditModal()" class="btn btn-light btn-sm" style="border: none; background: none; cursor: pointer;">✕</button>
+      </div>
+      <div class="modal-body" id="editModalBody">
+        Loading...
+      </div>
+      <div class="modal-footer">
+        <button onclick="closeEditModal()" class="btn btn-light">Batal</button>
+        <button onclick="saveEdit()" class="btn btn-primary" id="saveEditBtn">Simpan</button>
+        <button onclick="promptDeleteLastTransaction()" class="btn btn-danger" id="deleteBtn">Hapus</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,278 @@
+/* Dashboard Styles */
+.welcome-card {
+  background: white;
+  border-radius: 14px;
+  padding: 22px 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.welcome-text h2 {
+  margin: 0 0 6px;
+  font-size: 22px;
+  color: #1f2937;
+}
+
+.welcome-text p {
+  margin: 0;
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.dashboard-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.chart-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 18px 20px;
+  margin-bottom: 24px;
+}
+
+.chart-card .chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.chart-card h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #1f2937;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-left: 4px solid;
+}
+
+.stat-card.income {
+  border-left-color: #10b981;
+}
+
+.stat-card.expense {
+  border-left-color: #ef4444;
+}
+
+.stat-card.balance {
+  border-left-color: #3b82f6;
+}
+
+.stat-label {
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.stat-card.income .stat-value {
+  color: #10b981;
+}
+
+.stat-card.expense .stat-value {
+  color: #ef4444;
+}
+
+.stat-card.balance .stat-value {
+  color: #3b82f6;
+}
+
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.transactions-section {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.transactions-header {
+  padding: 20px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.transactions-header h2 {
+  margin: 0;
+  flex: 1;
+}
+
+.transactions-list {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.transaction-item {
+  padding: 16px 20px;
+  border-bottom: 1px solid #f3f4f6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  transition: background 0.2s;
+  cursor: pointer;
+}
+
+.transaction-item:hover {
+  background: #f9fafb;
+}
+
+.transaction-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.transaction-category {
+  font-weight: 500;
+  color: #1f2937;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.transaction-category-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.transaction-description {
+  font-size: 12px;
+  color: #9ca3af;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transaction-date {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.transaction-amount {
+  font-size: 16px;
+  font-weight: 600;
+  text-align: right;
+  min-width: 100px;
+}
+
+.transaction-amount.income {
+  color: #10b981;
+}
+
+.transaction-amount.expense {
+  color: #ef4444;
+}
+
+.transaction-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.transaction-actions button {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.empty-state {
+  padding: 40px 20px;
+  text-align: center;
+  color: #9ca3af;
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.period-selector {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.period-selector select {
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 13px;
+  min-width: 100px;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-container {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+
+  .chart-card {
+    margin-bottom: 24px;
+  }
+
+  .transactions-section {
+    margin-top: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .welcome-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .chart-card {
+    padding: 18px 16px;
+  }
+
+  .dashboard-container {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-actions {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  }
+
+  .transactions-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .transaction-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .transaction-amount {
+    text-align: left;
+  }
+}

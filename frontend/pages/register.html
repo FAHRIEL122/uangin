@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daftar - UANGIN Buku Kas</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/auth.css">
+</head>
+<body>
+  <div class="auth-container">
+    <div class="auth-card">
+      <div class="auth-header">
+        <h1 id="appLogo" aria-label="UANGIN">📊 UANGIN</h1>
+        <p>Daftar Akun Baru</p>
+      </div>
+
+      <div id="alertContainer"></div>
+
+      <form id="registerForm">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input 
+            type="text" 
+            id="username" 
+            name="username" 
+            placeholder="4-20 karakter, alphanumeric"
+            required
+          >
+          <small class="text-muted">Username harus 4-20 karakter alphanumeric</small>
+        </div>
+
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input 
+            type="email" 
+            id="email" 
+            name="email" 
+            placeholder="contoh@email.com"
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input 
+            type="password" 
+            id="password" 
+            name="password" 
+            placeholder="Minimal 6 karakter"
+            required
+          >
+          <small class="text-muted">Password minimal 6 karakter</small>
+        </div>
+
+        <div class="form-group">
+          <label for="fullName">Nama Lengkap (Opsional)</label>
+          <input 
+            type="text" 
+            id="fullName" 
+            name="full_name" 
+            placeholder="Nama Anda"
+          >
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block btn-lg" id="registerBtn">
+          Daftar
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        <p>Sudah punya akun? <a href="/login">Masuk di sini</a></p>
+        <p><small>Versi 1.0.0</small></p>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+</body>
+</html>

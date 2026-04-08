@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laporan - UANGIN Buku Kas</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/report.css">
+</head>
+<body>
+  <!-- Navigation Header -->
+  <header>
+    <div class="container">
+      <h1 id="appLogo" aria-label="UANGIN">📊 UANGIN</h1>
+      <div class="header-actions">
+        <button class="nav-toggle" id="navToggle" aria-label="Buka menu">☰</button>
+        <button class="nav-toggle" id="themeToggle" aria-label="Toggle tema">🌓</button>
+      </div>
+      <nav id="mainNav">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/pendapatan">+ Pendapatan</a>
+        <a href="/pengeluaran">- Pengeluaran</a>
+        <a href="/laporan" class="active">Laporan</a>
+        <a href="/kalender">Kalender</a>
+        <a href="/profil">Profil</a>
+        <a href="javascript:void(0)" onclick="logout()">Logout</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="container" style="padding-top: 24px; padding-bottom: 32px;">
+    <!-- Alert -->
+    <div id="alertContainer"></div>
+
+    <!-- Report Tabs -->
+    <div class="report-tabs">
+      <button class="tab-button active" data-tab="ringkasan">📈 Ringkasan</button>
+      <button class="tab-button" data-tab="transaksi">📋 Transaksi</button>
+      <button class="tab-button" data-tab="kategori">🏷️ Kategori</button>
+      <button class="tab-button" data-tab="budget">💰 Budget</button>
+      <button class="tab-button" data-tab="insight">✨ Insight</button>
+    </div>
+
+    <!-- Report Content -->
+    <div class="report-content">
+      <!-- Period Selector -->
+      <div class="report-header">
+        <h2 id="reportTitle">Laporan Ringkasan</h2>
+        <div class="report-period">
+          <select id="reportMonth" onchange="loadReport()">
+            <option value="1">Januari</option>
+            <option value="2">Februari</option>
+            <option value="3">Maret</option>
+            <option value="4">April</option>
+            <option value="5">Mei</option>
+            <option value="6">Juni</option>
+            <option value="7">Juli</option>
+            <option value="8">Agustus</option>
+            <option value="9">September</option>
+            <option value="10">Oktober</option>
+            <option value="11">November</option>
+            <option value="12">Desember</option>
+          </select>
+          <select id="reportYear" onchange="loadReport()">
+            <option value="2024">2024</option>
+            <option value="2025">2025</option>
+            <option value="2026">2026</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Ringkasan Tab -->
+      <div class="report-section active" data-section="ringkasan">
+        <div class="report-summary" id="summaryCards"></div>
+        <h3>Detail</h3>
+        <table class="table-responsive">
+          <thead>
+            <tr>
+              <th>Keterangan</th>
+              <th style="text-align: right;">Jumlah</th>
+            </tr>
+          </thead>
+          <tbody id="summaryTable">
+            <tr>
+              <td colspan="2" class="text-center">Loading...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Transaksi Tab -->
+      <div class="report-section" data-section="transaksi">
+        <div style="margin-bottom: 16px;">
+          <label>Filter: </label>
+          <select id="transactionFilter" onchange="loadReport()">
+            <option value="">Semua</option>
+            <option value="income">Pendapatan</option>
+            <option value="expense">Pengeluaran</option>
+          </select>
+        </div>
+        <table class="table-responsive">
+          <thead>
+            <tr>
+              <th>Tanggal</th>
+              <th>Kategori</th>
+              <th>Catatan</th>
+              <th style="text-align: right;">Nominal</th>
+              <th>Tipe</th>
+            </tr>
+          </thead>
+          <tbody id="transactionTable">
+            <tr>
+              <td colspan="5" class="text-center">Loading...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Kategori Tab -->
+      <div class="report-section" data-section="kategori">
+        <table class="table-responsive">
+          <thead>
+            <tr>
+              <th>Kategori</th>
+              <th>Tipe</th>
+              <th style="text-align: right;">Jumlah Transaksi</th>
+              <th style="text-align: right;">Total</th>
+            </tr>
+          </thead>
+          <tbody id="categoryTable">
+            <tr>
+              <td colspan="4" class="text-center">Loading...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Budget Tab -->
+      <div class="report-section" data-section="budget">
+        <div class="report-summary" id="budgetSummary"></div>
+
+        <div class="budget-actions" style="margin-bottom:16px;">
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <select id="budgetCategory" style="flex:1; min-width:200px;"></select>
+            <input id="budgetAmount" type="text" placeholder="Jumlah budget (contoh: 1500000)" style="flex:1; min-width:200px;" />
+            <button id="saveBudgetBtn" class="btn btn-primary" type="button">Simpan Budget</button>
+          </div>
+          <div id="budgetFormInfo" style="margin-top:8px; font-size: 0.9rem; color:#6b7280;"></div>
+        </div>
+
+        <div id="budgetList"></div>
+      </div>
+
+      <!-- Insight Tab -->
+      <div class="report-section" data-section="insight">
+        <div id="insightCards"></div>
+      </div>
+    </div>
+  </main>
+
+  <script src="../js/utils.js"></script>
+  <script src="../js/report.js"></script>
+</body>
+</html>

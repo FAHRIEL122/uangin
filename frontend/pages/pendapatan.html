@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tambah Pendapatan - UANGIN Buku Kas</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/transaction.css">
+</head>
+<body>
+  <!-- Navigation Header -->
+  <header>
+    <div class="container">
+      <h1 id="appLogo" aria-label="UANGIN">📊 UANGIN</h1>
+      <div class="header-actions">
+        <button class="nav-toggle" id="navToggle" aria-label="Buka menu">☰</button>
+        <button class="nav-toggle" id="themeToggle" aria-label="Toggle tema">🌓</button>
+      </div>
+      <nav id="mainNav">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/pendapatan" class="active">+ Pendapatan</a>
+        <a href="/pengeluaran">- Pengeluaran</a>
+        <a href="/laporan">Laporan</a>
+        <a href="/kalender">Kalender</a>
+        <a href="/profil">Profil</a>
+        <a href="javascript:void(0)" onclick="logout()">Logout</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="container" style="padding-top: 24px; padding-bottom: 32px;">
+    <!-- Alert -->
+    <div id="alertContainer"></div>
+
+    <!-- Form Card -->
+    <div class="form-card">
+      <div class="form-title">
+        <h1><span class="icon">↑</span> Tambah Pendapatan</h1>
+        <p>Catat pemasukan atau tambahan dana Anda</p>
+      </div>
+
+      <form id="transactionForm">
+        <div class="form-group">
+          <label for="amount">Nominal *</label>
+          <input 
+            type="text" 
+            inputmode="decimal"
+            id="amount" 
+            name="amount" 
+            placeholder="10.000"
+            required
+          >
+          <div class="formatted-amount" id="formattedAmount"></div>
+          <small>Gunakan titik untuk ribuan, koma untuk desimal</small>
+        </div>
+
+        <div class="form-group">
+          <label for="category">Kategori *</label>
+          <input list="categories" id="category" name="category" placeholder="Ketik atau pilih kategori" required>
+          <datalist id="categories"></datalist>
+          <small>Ketik atau pilih kategori, dan akan tersimpan otomatis.</small>
+        </div>
+
+        <div class="form-group">
+          <label for="description">Catatan (Opsional)</label>
+          <input 
+            type="text" 
+            id="description" 
+            name="description" 
+            placeholder="Misal: Bonus dari kantor, Transfer dari teman"
+          >
+          <small>Tambahkan catatan untuk transaksi ini</small>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="date">Tanggal *</label>
+            <input type="date" id="date" required>
+            <small>Tanggal transaksi</small>
+          </div>
+
+          <div class="form-group">
+            <label for="time">Jam *</label>
+            <input type="time" id="time" required>
+            <small>Jam transaksi</small>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="isRecurring" /> Transaksi Berulang
+          </label>
+          <small>Centang jika transaksi ini terjadi setiap bulan</small>
+        </div>
+
+        <div class="form-group">
+          <label for="attachment">Lampiran (Opsional)</label>
+          <input type="file" id="attachment" accept="image/*,.pdf" />
+          <small>Unggah bukti transaksi (foto atau PDF)</small>
+        </div>
+
+        <div class="budget-warning" id="budgetWarning"></div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-secondary btn-lg" id="submitBtn">
+            ✓ Simpan & Lanjut
+          </button>
+          <a href="/dashboard" class="btn btn-light btn-lg" style="text-decoration: none; text-align: center;">
+            ✕ Batal
+          </a>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <script src="../js/utils.js"></script>
+  <script src="../js/transaction-input.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      initTransactionForm('income');
+    });
+  </script>
+</body>
+</html>

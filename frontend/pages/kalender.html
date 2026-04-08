@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kalender - UANGIN Buku Kas</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .calendar-container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .calendar-header button {
+      padding: 8px 12px;
+    }
+
+    .calendar-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .calendar-table th {
+      background: #3b82f6;
+      color: white;
+      padding: 12px;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .calendar-table td {
+      padding: 12px;
+      height: 80px;
+      vertical-align: top;
+      border: 1px solid #e5e7eb;
+      position: relative;
+    }
+
+    .calendar-table td:hover {
+      background: #f9fafb;
+    }
+
+    .calendar-date-num {
+      font-weight: 600;
+      color: #1f2937;
+      margin-bottom: 4px;
+    }
+
+    .calendar-date-num.other-month {
+      color: #d1d5db;
+    }
+
+    .calendar-transactions {
+      font-size: 11px;
+      max-height: 100%;
+      overflow: hidden;
+    }
+
+    .calendar-transaction-item {
+      padding: 2px 4px;
+      border-radius: 2px;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+    }
+
+    .calendar-transaction-item.income {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .calendar-transaction-item.expense {
+      background: #fee2e2;
+      color: #7f1d1d;
+    }
+
+    .today {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .today .calendar-date-num {
+      color: white;
+    }
+
+    .today .calendar-transactions {
+      color: white;
+    }
+
+    @media (max-width: 768px) {
+      .calendar-table td {
+        padding: 8px;
+        height: 60px;
+        font-size: 12px;
+      }
+
+      .calendar-transaction-item {
+        font-size: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation Header -->
+  <header>
+    <div class="container">
+      <h1 id="appLogo" aria-label="UANGIN">📊 UANGIN</h1>
+      <div class="header-actions">
+        <button class="nav-toggle" id="navToggle" aria-label="Buka menu">☰</button>
+        <button class="nav-toggle" id="themeToggle" aria-label="Toggle tema">🌓</button>
+      </div>
+      <nav id="mainNav">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/pendapatan">+ Pendapatan</a>
+        <a href="/pengeluaran">- Pengeluaran</a>
+        <a href="/laporan">Laporan</a>
+        <a href="/kalender" class="active">Kalender</a>
+        <a href="/profil">Profil</a>
+        <a href="javascript:void(0)" onclick="logout()">Logout</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="container calendar-container" style="padding-top: 24px; padding-bottom: 32px;">
+    <!-- Alert -->
+    <div id="alertContainer"></div>
+
+    <div class="calendar-header">
+      <button class="btn btn-light btn-sm" onclick="previousMonth()">← Bulan Sebelumnya</button>
+      <h2 id="monthYearTitle"></h2>
+      <button class="btn btn-light btn-sm" onclick="nextMonth()">Bulan Berikutnya →</button>
+    </div>
+
+    <table class="calendar-table" id="calendarTable">
+      <thead>
+        <tr>
+          <th>Minggu</th>
+          <th>Senin</th>
+          <th>Selasa</th>
+          <th>Rabu</th>
+          <th>Kamis</th>
+          <th>Jumat</th>
+          <th>Sabtu</th>
+        </tr>
+      </thead>
+      <tbody id="calendarBody">
+      </tbody>
+    </table>
+  </main>
+
+  <script src="../js/utils.js"></script>
+  <script src="../js/calendar.js"></script>
+</body>
+</html>
