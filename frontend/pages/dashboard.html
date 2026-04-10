@@ -177,7 +177,10 @@
     </div>
   </div>
 
+  <!-- Load Chart.js first (synchronously to ensure it's available) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  
+  <!-- Then load our scripts in order -->
   <script src="../js/utils.js"></script>
   <script src="../js/dashboard.js"></script>
 </body>

@@ -150,6 +150,12 @@ function initChart() {
   const ctx = document.getElementById('incomeExpenseChart');
   if (!ctx) return;
 
+  // Check if Chart.js is loaded
+  if (typeof Chart === 'undefined') {
+    console.warn('Chart.js is not loaded. Skipping chart initialization.');
+    return;
+  }
+
   incomeExpenseChart = new Chart(ctx, {
     type: 'doughnut',
     data: {
@@ -187,6 +193,12 @@ function initChart() {
 
 // Update chart data
 function updateChart(summary) {
+  // Check if Chart.js is loaded
+  if (typeof Chart === 'undefined') {
+    console.warn('Chart.js is not loaded. Skipping chart update.');
+    return;
+  }
+
   if (!incomeExpenseChart) {
     initChart();
   }
