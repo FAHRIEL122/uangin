@@ -8,9 +8,9 @@ router.use(authenticateToken);
 
 router.get('/', transactionController.getTransactions);
 router.get('/all', transactionController.getAllTransactions);
+router.post('/undo', transactionController.undoLastTransaction);
 router.post('/', transactionController.createTransaction);
 router.put('/:id', transactionController.updateTransaction);
 router.delete('/:id', transactionController.deleteTransaction);
-router.post('/undo', transactionController.undoLastTransaction);
 
 module.exports = router;

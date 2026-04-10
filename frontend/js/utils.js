@@ -355,19 +355,3 @@ document.addEventListener('DOMContentLoaded', () => {
   initNavigation();
   initTheme();
 });
-
-// Build query string
-const buildQueryString = (params) => {
-  const qs = new URLSearchParams(params);
-  return qs.toString();
-};
-
-// Parse query parameters
-const getQueryParams = () => {
-  const qs = new URLSearchParams(window.location.search);
-  const params = {};
-  for (let [key, value] of qs.entries()) {
-    params[key] = value;
-  }
-  return params;
-};

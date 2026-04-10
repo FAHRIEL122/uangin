@@ -21,8 +21,15 @@ const validateAmount = (amount) => {
 };
 
 const validateDate = (dateString) => {
+  // Validate YYYY-MM-DD format strictly
+  if (!dateString || typeof dateString !== 'string') return false;
+  
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(dateString)) return false;
+  
   const date = new Date(dateString);
-  return date instanceof Date && !isNaN(date);
+  // Check if date is valid and the string matches the parsed date
+  return date instanceof Date && !isNaN(date) && dateString === date.toISOString().split('T')[0];
 };
 
 const validateTime = (timeString) => {

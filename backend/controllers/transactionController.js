@@ -10,12 +10,12 @@ const calculateBalanceAfter = async (userId, upToId) => {
 
   try {
     const [result] = await connection.execute(
-      `SELECT 
+      `SELECT
         COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END), 0) as balance
        FROM transactions
-       WHERE user_id = ? AND (id < ? OR id = ?)
-       ORDER BY transaction_date, transaction_time`,
-      [userId, upToId, upToId]
+       WHERE user_id = ? AND id <= ?
+       ORDER BY transaction_date, transaction_time, id`,
+      [userId, upToId]
     );
 
     return result[0]?.balance || 0;
@@ -139,24 +139,45 @@ exports.createTransaction = async (req, res) => {
     const userId = req.user.userId;
     const { amount, type, description, category_id, transaction_date, transaction_time, is_recurring, attachment_path } = req.body;
 
+    // DEBUG: Log incoming request
+    console.log('=== CREATE TRANSACTION DEBUG ===');
+    console.log('User ID:', userId);
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    console.log('Parsed values:', {
+      amount,
+      type,
+      description,
+      category_id,
+      transaction_date,
+      transaction_time,
+      is_recurring,
+      attachment_path
+    });
+    console.log('================================');
+
     // Validation
     if (!amount || !type || !category_id || !transaction_date || !transaction_time) {
+      console.error('VALIDATION FAILED: Missing required fields');
       return sendError(res, 'Required fields: amount, type, category_id, transaction_date, transaction_time', 400);
     }
 
     if (!validateAmount(amount)) {
+      console.error('VALIDATION FAILED: Invalid amount', amount);
       return sendError(res, 'Amount must be a positive number', 400);
     }
 
     if (!['income', 'expense'].includes(type)) {
+      console.error('VALIDATION FAILED: Invalid type', type);
       return sendError(res, 'Type must be income or expense', 400);
     }
 
     if (!validateDate(transaction_date)) {
+      console.error('VALIDATION FAILED: Invalid date', transaction_date);
       return sendError(res, 'Invalid date format', 400);
     }
 
     if (!validateTime(transaction_time)) {
+      console.error('VALIDATION FAILED: Invalid time', transaction_time);
       return sendError(res, 'Invalid time format (HH:MM or HH:MM:SS)', 400);
     }
 
@@ -169,21 +190,27 @@ exports.createTransaction = async (req, res) => {
         [category_id, userId]
       );
 
+      console.log('Category verification:', { category_id, userId, found: categories.length > 0 });
+
       if (categories.length === 0) {
+        console.error('VALIDATION FAILED: Category not found for this user');
         return sendError(res, 'Category not found', 404);
       }
 
       // Insert transaction
+      console.log('Executing INSERT...');
       const [result] = await connection.execute(
-        `INSERT INTO transactions 
+        `INSERT INTO transactions
          (user_id, category_id, amount, type, description, transaction_date, transaction_time, is_recurring, attachment_path)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [userId, category_id, amount, type, description || null, transaction_date, transaction_time, is_recurring ? 1 : 0, attachment_path || null]
       );
 
       const transactionId = result.insertId;
+      console.log('Transaction inserted with ID:', transactionId);
 
       // Calculate and update balance_after for all subsequent transactions
+      console.log('Updating balances...');
       await updateAllBalancesAfter(userId, transactionId);
 
       // Update budget spent for expense transactions
@@ -194,11 +221,11 @@ exports.createTransaction = async (req, res) => {
 
       // Get created transaction
       const [newTransaction] = await connection.execute(
-        `SELECT 
-          t.id, 
-          t.amount, 
-          t.type, 
-          t.description, 
+        `SELECT
+          t.id,
+          t.amount,
+          t.type,
+          t.description,
           DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as transaction_date,
           t.transaction_time,
           t.balance_after,
@@ -212,6 +239,8 @@ exports.createTransaction = async (req, res) => {
         [transactionId]
       );
 
+      console.log('Created transaction:', newTransaction[0]);
+
       // Log undo
       await connection.execute(
         `INSERT INTO undo_log (user_id, transaction_id, action, new_data)
@@ -219,6 +248,7 @@ exports.createTransaction = async (req, res) => {
         [userId, transactionId, JSON.stringify(newTransaction[0])]
       );
 
+      console.log('Transaction created successfully');
       sendSuccess(res, newTransaction[0], 'Transaction created successfully', 201);
 
     } finally {
@@ -226,7 +256,12 @@ exports.createTransaction = async (req, res) => {
     }
 
   } catch (error) {
-    console.error('Create transaction error:', error);
+    console.error('=== CREATE TRANSACTION ERROR ===');
+    console.error('Error:', error);
+    console.error('Error code:', error.code);
+    console.error('Error errno:', error.errno);
+    console.error('Error sqlState:', error.sqlState);
+    console.error('================================');
     sendError(res, 'Failed to create transaction', 500);
   }
 };
@@ -502,44 +537,43 @@ const updateAllBalancesAfter = async (userId, fromTransactionId) => {
   const connection = await db.getConnection();
 
   try {
-    // Get all transactions after the specified one, ordered by date & time
+    // Get all transactions from the specified one, ordered properly
     const [transactions] = await connection.execute(
-      `SELECT id FROM transactions 
+      `SELECT id, amount, type FROM transactions
        WHERE user_id = ? AND id >= ?
-       ORDER BY transaction_date, transaction_time`,
+       ORDER BY transaction_date ASC, transaction_time ASC, id ASC`,
       [userId, fromTransactionId]
     );
 
-    let runningBalance = 0;
+    if (transactions.length === 0) {
+      console.log('No transactions to update balances for');
+      return;
+    }
 
     // Get initial balance (before fromTransactionId)
     const [initialBalance] = await connection.execute(
-      `SELECT 
+      `SELECT
         COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END), 0) as balance
        FROM transactions
        WHERE user_id = ? AND id < ?`,
       [userId, fromTransactionId]
     );
 
-    runningBalance = parseFloat(initialBalance[0]?.balance || 0);
+    let runningBalance = parseFloat(initialBalance[0]?.balance || 0);
+
+    console.log(`Updating balances for ${transactions.length} transactions, starting balance: ${runningBalance}`);
 
     // Update balance for each transaction
-    for (const transaction of transactions) {
-      const [txData] = await connection.execute(
-        'SELECT amount, type FROM transactions WHERE id = ?',
-        [transaction.id]
+    for (const tx of transactions) {
+      runningBalance += tx.type === 'income' ? parseFloat(tx.amount) : -parseFloat(tx.amount);
+
+      await connection.execute(
+        'UPDATE transactions SET balance_after = ? WHERE id = ?',
+        [runningBalance, tx.id]
       );
-
-      if (txData.length > 0) {
-        const tx = txData[0];
-        runningBalance += tx.type === 'income' ? parseFloat(tx.amount) : -parseFloat(tx.amount);
-
-        await connection.execute(
-          'UPDATE transactions SET balance_after = ? WHERE id = ?',
-          [runningBalance, transaction.id]
-        );
-      }
     }
+
+    console.log(`Final balance after update: ${runningBalance}`);
 
   } finally {
     connection.release();

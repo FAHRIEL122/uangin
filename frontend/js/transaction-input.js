@@ -146,14 +146,30 @@ const updateFormattedAmount = () => {
 // Load categories
 const loadCategories = async () => {
   try {
-    const response = await apiCall('/categories');
+    const response = await apiCall('/categories', { showLoading: false });
+    
+    if (!response || !response.data || !Array.isArray(response.data)) {
+      console.error('Invalid categories response:', response);
+      showAlert('Format data kategori tidak valid', 'danger');
+      return;
+    }
+    
     categories = response.data.filter(c => c.type === transactionType);
 
     const datalist = document.getElementById('categories');
+    if (!datalist) {
+      console.error('Categories datalist element not found');
+      return;
+    }
+    
     datalist.innerHTML = '';
 
     // Ensure categories are sorted A-Z for better UX
     categories.sort((a, b) => a.name.localeCompare(b.name));
+
+    if (categories.length === 0) {
+      console.warn(`No ${transactionType} categories loaded for this user`);
+    }
 
     categories.forEach(cat => {
       const option = document.createElement('option');
@@ -161,7 +177,8 @@ const loadCategories = async () => {
       datalist.appendChild(option);
     });
   } catch (error) {
-    showAlert('Gagal memuat kategori', 'danger');
+    console.error('Error loading categories:', error);
+    showAlert('Gagal memuat kategori: ' + (error.message || 'Unknown error'), 'danger');
   }
 };
 
@@ -250,25 +267,56 @@ const handleSubmit = async (e) => {
   const isRecurring = document.getElementById('isRecurring')?.checked;
   const attachmentFile = document.getElementById('attachment')?.files?.[0];
 
+  // DEBUG: Log form input values
+  console.log('=== FORM SUBMISSION DEBUG ===');
+  console.log('Raw amount input:', document.getElementById('amount').value);
+  console.log('Parsed amount:', amount);
+  console.log('Category name:', categoryName);
+  console.log('Description:', description);
+  console.log('Transaction date:', transactionDate);
+  console.log('Transaction time:', transactionTime);
+  console.log('Is recurring:', isRecurring);
+  console.log('Transaction type:', transactionType);
+  console.log('=============================');
+
   // Validation
   if (!amount || amount <= 0 || isNaN(amount)) {
+    console.error('VALIDATION FAILED: Invalid amount', { amount, isNaN: isNaN(amount) });
     showAlert('Nominal harus diisi dan lebih dari 0', 'danger');
     return;
   }
 
   if (!categoryName) {
+    console.error('VALIDATION FAILED: Category name is empty');
     showAlert('Kategori harus diisi', 'danger');
     return;
   }
+
+  if (!transactionDate) {
+    console.error('VALIDATION FAILED: Transaction date is empty');
+    showAlert('Tanggal harus diisi', 'danger');
+    return;
+  }
+
+  if (!transactionTime) {
+    console.error('VALIDATION FAILED: Transaction time is empty');
+    showAlert('Jam harus diisi', 'danger');
+    return;
+  }
+
+  // Disable button early to prevent double submission
+  disableButton('submitBtn');
 
   // Ensure category exists (create if new)
   let categoryId;
   const existingCategory = findCategoryByName(categoryName);
   if (existingCategory) {
     categoryId = existingCategory.id;
+    console.log('Category found:', existingCategory);
   } else {
+    console.log('Category not found in local, will try to create...');
     try {
-      const response = await apiCall('/categories', {
+      const createResponse = await apiCall('/categories', {
         method: 'POST',
         body: JSON.stringify({
           name: categoryName,
@@ -276,37 +324,52 @@ const handleSubmit = async (e) => {
         }),
       });
 
-      categoryId = response.data.id;
-      categories.push({ id: categoryId, name: categoryName, type: transactionType });
+      if (createResponse && createResponse.data && createResponse.data.id) {
+        categoryId = createResponse.data.id;
+        categories.push({ id: categoryId, name: categoryName, type: transactionType });
+        console.log('Category created:', createResponse.data);
 
-      // Add the new category to the suggestion list immediately
-      const datalist = document.getElementById('categories');
-      if (datalist) {
-        const option = document.createElement('option');
-        option.value = categoryName;
-        datalist.appendChild(option);
+        // Add the new category to the suggestion list immediately
+        const datalist = document.getElementById('categories');
+        if (datalist) {
+          const option = document.createElement('option');
+          option.value = categoryName;
+          datalist.appendChild(option);
+        }
       }
     } catch (error) {
+      // If creation failed with "already exists", try to find it in existing categories
       if (error.message && error.message.toLowerCase().includes('already exists')) {
         try {
-          const existing = await apiCall('/categories', { showLoading: false });
-          const found = existing.data.find(c => c.name.toLowerCase() === categoryName.toLowerCase() && c.type === transactionType);
-          if (found) {
-            categoryId = found.id;
+          const allCategories = await apiCall('/categories', { showLoading: false });
+          if (allCategories && allCategories.data) {
+            const found = allCategories.data.find(c => c.name.toLowerCase() === categoryName.toLowerCase() && c.type === transactionType);
+            if (found) {
+              categoryId = found.id;
+              // Update local categories if not there
+              if (!categories.find(c => c.id === found.id)) {
+                categories.push(found);
+              }
+              console.log('Category found after "already exists" error:', found);
+            }
           }
         } catch (innerErr) {
-          // ignore
+          console.error('Failed to fetch categories:', innerErr);
         }
+      } else {
+        console.error('Failed to create/fetch category:', error);
       }
     }
   }
 
   if (!categoryId) {
-    showAlert('Kategori tidak dapat diproses, coba lagi.', 'danger');
+    console.error('ERROR: categoryId is still null/undefined');
+    showAlert('Kategori tidak dapat diproses. Silakan periksa kategori dan coba lagi.', 'danger');
+    enableButton('submitBtn', '✓ Simpan & Lanjut');
     return;
   }
 
-  disableButton('submitBtn');
+  console.log('Proceeding with transaction submission...');
 
   try {
     let attachmentPath = null;
@@ -314,20 +377,28 @@ const handleSubmit = async (e) => {
       attachmentPath = await uploadAttachment(attachmentFile);
     }
 
-    await apiCall('/transactions', {
+    const payload = {
+      amount,
+      type: transactionType,
+      category_id: categoryId,
+      description: description || null,
+      transaction_date: transactionDate,
+      transaction_time: transactionTime,
+      is_recurring: !!isRecurring,
+      attachment_path: attachmentPath || null,
+    };
+    
+    console.log('=== API PAYLOAD ===');
+    console.log('POST /api/transactions');
+    console.log('Payload:', JSON.stringify(payload, null, 2));
+    console.log('===================');
+
+    const response = await apiCall('/transactions', {
       method: 'POST',
-      body: JSON.stringify({
-        amount,
-        type: transactionType,
-        category_id: categoryId,
-        description: description || null,
-        transaction_date: transactionDate,
-        transaction_time: transactionTime,
-        is_recurring: !!isRecurring,
-        attachment_path: attachmentPath || null,
-      }),
+      body: JSON.stringify(payload),
     });
 
+    console.log('API Response:', response);
     showToast('Transaksi berhasil disimpan', 'success');
 
     // Redirect to dashboard (to the month/year of the transaction) after a short delay to let toast show
@@ -337,7 +408,12 @@ const handleSubmit = async (e) => {
     }, 600);
 
   } catch (error) {
-    showAlert(error.message, 'danger');
+    console.error('=== TRANSACTION SUBMISSION ERROR ===');
+    console.error('Error:', error);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('===================================');
+    showAlert(error.message || 'Terjadi kesalahan saat menyimpan transaksi', 'danger');
     enableButton('submitBtn', '✓ Simpan & Lanjut');
   }
 };

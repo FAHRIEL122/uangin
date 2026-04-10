@@ -22,32 +22,27 @@ async function initializeDatabase() {
     await connection.execute(`CREATE DATABASE \`${process.env.DB_NAME || 'buku_kas'}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
     console.log('✅ New database created');
 
-    // Close old connection and create new one with database selected
+    // Close old connection and create new one without a default database
     await connection.end();
     
     connection = await mysql.createConnection({
       host: process.env.DB_HOST || 'localhost',
       user: process.env.DB_USER || 'root',
       password: process.env.DB_PASSWORD || '',
-      database: process.env.DB_NAME || 'buku_kas',
-      port: process.env.DB_PORT || 3306
+      port: process.env.DB_PORT || 3306,
+      multipleStatements: true,
     });
 
     // Read SQL schema file
-    const sqlFile = path.join(__dirname, 'database', 'uangin_complete.sql');
-    let sql = fs.readFileSync(sqlFile, 'utf8');
+    const sqlFile = path.join(__dirname, '..', 'database', 'uangin_complete.sql');
+    const sql = fs.readFileSync(sqlFile, 'utf8');
 
-    // Split and execute statements
-    const statements = sql.split(';').filter(stmt => stmt.trim());
-    
-    for (const statement of statements) {
-      if (statement.trim()) {
-        try {
-          await connection.execute(statement);
-        } catch (error) {
-          console.warn('⚠️  Statement warning:', error.message);
-        }
-      }
+    // Execute the full SQL schema file in one call
+    try {
+      await connection.query(sql);
+    } catch (error) {
+      console.error('❌ Error importing SQL schema:', error.message);
+      throw error;
     }
 
     console.log('✅ All tables created successfully!');

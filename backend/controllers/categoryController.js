@@ -133,7 +133,7 @@ exports.deleteCategory = async (req, res) => {
     try {
       // Verify category belongs to user and is not default
       const [categories] = await connection.execute(
-        'SELECT id, type FROM categories WHERE id = ? AND user_id = ?',
+        'SELECT id, type, is_default FROM categories WHERE id = ? AND user_id = ?',
         [categoryId, userId]
       );
 
@@ -143,18 +143,20 @@ exports.deleteCategory = async (req, res) => {
 
       const category = categories[0];
 
-      if (categories[0].is_default) {
+      if (category.is_default) {
         return sendError(res, 'Cannot delete default categories', 403);
       }
 
       // Get "Lainnya" category for the same type
+      const categoryName = category.type === 'income' ? 'Lainnya (Pemasukan)' : 'Lainnya (Pengeluaran)';
+      
       const [otherCategory] = await connection.execute(
-        'SELECT id FROM categories WHERE user_id = ? AND name = "Lainnya" AND type = ? AND is_default = 1',
-        [userId, category.type]
+        'SELECT id FROM categories WHERE user_id = ? AND name = ? AND type = ? AND is_default = 1',
+        [userId, categoryName, category.type]
       );
 
       if (otherCategory.length === 0) {
-        return sendError(res, '"Lainnya" category not found', 500);
+        return sendError(res, 'Default category not found', 500);
       }
 
       const otherCategoryId = otherCategory[0].id;
