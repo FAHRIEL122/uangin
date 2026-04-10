@@ -1,29 +1,42 @@
 // JWT Helper Functions
 const jwt = require('jsonwebtoken');
 
-// Use configured secret, or a dev fallback in non-production for convenience
-const jwtSecret = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? null : 'dev-secret');
+// JWT secret must be configured - no fallbacks for security
+const jwtSecret = process.env.JWT_SECRET;
 
-if (!jwtSecret && process.env.NODE_ENV === 'production') {
-  console.error('FATAL: JWT_SECRET is not set in production environment. Authentication will fail.');
+if (!jwtSecret) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('FATAL: JWT_SECRET must be set in production environment');
+  }
+  console.warn('WARNING: JWT_SECRET is not set. Using insecure dev-only secret. SET THIS IN PRODUCTION!');
+  // In development only, generate a random secret if not provided
+  // This is ONLY for local development convenience
+  const crypto = require('crypto');
+  module.exports._devSecret = crypto.randomBytes(64).toString('hex');
 }
 
+const getJwtSecret = () => {
+  return jwtSecret || module.exports._devSecret;
+};
+
 const generateToken = (userId) => {
-  if (!jwtSecret) {
+  const secret = getJwtSecret();
+  if (!secret) {
     throw new Error('JWT secret is not configured');
   }
 
   return jwt.sign(
     { userId },
-    jwtSecret,
+    secret,
     { expiresIn: '7d' }
   );
 };
 
 const verifyToken = (token) => {
   try {
-    if (!jwtSecret) return null;
-    return jwt.verify(token, jwtSecret);
+    const secret = getJwtSecret();
+    if (!secret) return null;
+    return jwt.verify(token, secret);
   } catch (error) {
     return null;
   }

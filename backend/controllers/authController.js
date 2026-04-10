@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const db = require('../config/database');
 const { generateToken } = require('../utils/jwtHelper');
 const { sendSuccess, sendError } = require('../utils/response');
-const { validateEmail, validateUsername, validatePassword } = require('../utils/validation');
+const { validateEmail, validateUsername, validatePassword, getPasswordValidationMessage } = require('../utils/validation');
 
 const cookieOptions = {
   httpOnly: true,
@@ -24,15 +24,15 @@ exports.register = async (req, res) => {
     }
 
     if (!validateUsername(username)) {
-      return sendError(res, 'Username must be 4-20 characters alphanumeric', 400);
+      return sendError(res, 'Username harus 4-20 karakter alphanumeric', 400);
     }
 
     if (!validateEmail(email)) {
-      return sendError(res, 'Invalid email format', 400);
+      return sendError(res, 'Format email tidak valid', 400);
     }
 
     if (!validatePassword(password)) {
-      return sendError(res, 'Password must be at least 6 characters', 400);
+      return sendError(res, getPasswordValidationMessage(), 400);
     }
 
     const connection = await db.getConnection();
@@ -45,11 +45,11 @@ exports.register = async (req, res) => {
       );
 
       if (existingUser.length > 0) {
-        return sendError(res, 'Username or email already exists', 400);
+        return sendError(res, 'Username atau email sudah terdaftar', 400);
       }
 
-      // Hash password
-      const hashedPassword = await bcrypt.hash(password, 10);
+      // Hash password with stronger salt factor (12 instead of 10)
+      const hashedPassword = await bcrypt.hash(password, 12);
 
       // Insert user
       const [result] = await connection.execute(
@@ -86,12 +86,12 @@ exports.register = async (req, res) => {
       // Set secure cookie for session (helps protect against XSS)
       res.cookie('token', token, cookieOptions);
 
-      sendSuccess(res, { 
-        userId, 
-        username, 
+      sendSuccess(res, {
+        userId,
+        username,
         email,
-        token 
-      }, 'Registration successful', 201);
+        token
+      }, 'Registrasi berhasil', 201);
 
     } finally {
       connection.release();
@@ -99,7 +99,7 @@ exports.register = async (req, res) => {
 
   } catch (error) {
     console.error('Register error:', error);
-    sendError(res, 'Registration failed', 500);
+    sendError(res, 'Registrasi gagal', 500);
   }
 };
 
@@ -110,7 +110,7 @@ exports.login = async (req, res) => {
 
     // Validation
     if (!username || !password) {
-      return sendError(res, 'Username and password are required', 400);
+      return sendError(res, 'Username dan password harus diisi', 400);
     }
 
     const connection = await db.getConnection();
@@ -123,7 +123,7 @@ exports.login = async (req, res) => {
       );
 
       if (users.length === 0) {
-        return sendError(res, 'Invalid username or password', 401);
+        return sendError(res, 'Username atau password salah', 401);
       }
 
       const user = users[0];
@@ -132,7 +132,7 @@ exports.login = async (req, res) => {
       const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
       if (!isPasswordValid) {
-        return sendError(res, 'Invalid username or password', 401);
+        return sendError(res, 'Username atau password salah', 401);
       }
 
       // Generate token
@@ -141,12 +141,12 @@ exports.login = async (req, res) => {
       // Set secure cookie for session (helps protect against XSS)
       res.cookie('token', token, cookieOptions);
 
-      sendSuccess(res, { 
+      sendSuccess(res, {
         userId: user.id,
-        username: user.username, 
+        username: user.username,
         email: user.email,
-        token 
-      }, 'Login successful');
+        token
+      }, 'Login berhasil');
 
     } finally {
       connection.release();
@@ -154,7 +154,7 @@ exports.login = async (req, res) => {
 
   } catch (error) {
     console.error('Login error:', error);
-    sendError(res, 'Login failed', 500);
+    sendError(res, 'Login gagal', 500);
   }
 };
 
@@ -196,26 +196,25 @@ exports.updateProfile = async (req, res) => {
     const connection = await db.getConnection();
 
     try {
+      // Whitelist approach - only allow specific columns
+      const allowedFields = {
+        full_name: full_name !== undefined ? (full_name || null) : undefined,
+        phone: phone !== undefined ? (phone || null) : undefined,
+        photo_url: photo_url !== undefined ? (photo_url || null) : undefined,
+      };
+
       const updates = [];
       const values = [];
 
-      if (full_name !== undefined) {
-        updates.push('full_name = ?');
-        values.push(full_name || null);
-      }
-
-      if (phone !== undefined) {
-        updates.push('phone = ?');
-        values.push(phone || null);
-      }
-
-      if (photo_url !== undefined) {
-        updates.push('photo_url = ?');
-        values.push(photo_url || null);
-      }
+      Object.entries(allowedFields).forEach(([field, value]) => {
+        if (value !== undefined) {
+          updates.push(`${field} = ?`);
+          values.push(value);
+        }
+      });
 
       if (updates.length === 0) {
-        return sendSuccess(res, { userId }, 'No profile changes provided');
+        return sendSuccess(res, { userId }, 'Tidak ada perubahan profile');
       }
 
       values.push(userId);
@@ -225,7 +224,7 @@ exports.updateProfile = async (req, res) => {
         values
       );
 
-      sendSuccess(res, { userId, full_name, phone, photo_url }, 'Profile updated successfully');
+      sendSuccess(res, { userId, full_name, phone, photo_url }, 'Profile berhasil diperbarui');
 
     } finally {
       connection.release();
@@ -233,7 +232,7 @@ exports.updateProfile = async (req, res) => {
 
   } catch (error) {
     console.error('Update profile error:', error);
-    sendError(res, 'Failed to update profile', 500);
+    sendError(res, 'Gagal memperbarui profile', 500);
   }
 };
 

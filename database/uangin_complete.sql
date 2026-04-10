@@ -2,8 +2,11 @@
 -- UANGIN - Aplikasi Buku Kas Pribadi
 -- Complete Database Schema with Sample Data
 -- ============================================================
+-- WARNING: This script will drop and recreate the 'buku_kas' database!
+-- All existing data will be lost. For production, remove the DROP statement below.
+-- ============================================================
 
--- Drop database if exists
+-- Drop database if exists (REMOVE THIS LINE IN PRODUCTION)
 DROP DATABASE IF EXISTS `buku_kas`;
 
 -- Create database

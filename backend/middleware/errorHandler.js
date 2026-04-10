@@ -1,8 +1,32 @@
 // Error Handler Middleware
+const multer = require('multer');
+
 const errorHandler = (err, req, res, next) => {
   console.error('Error:', err.message || err);
   if (err.code) console.error('Error Code:', err.code);
   if (err.stack) console.error('Stack:', err.stack);
+
+  // Handle Multer errors (file upload)
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({
+        success: false,
+        message: 'Ukuran file terlalu besar. Maksimal 5 MB.',
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      message: `Upload error: ${err.message}`,
+    });
+  }
+
+  // Handle custom file filter errors
+  if (err.message && (err.message.includes('File type tidak diizinkan') || err.message.includes('not allowed'))) {
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
 
   // Handle validation errors
   if (err.name === 'ValidationError') {
@@ -22,7 +46,7 @@ const errorHandler = (err, req, res, next) => {
   }
 
   // Handle database connection errors
-  if (err.code === 'PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR' || 
+  if (err.code === 'PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR' ||
       err.code === 'PROTOCOL_CONNECTION_LOST' ||
       err.code === 'ECONNREFUSED' ||
       err.code === 'ECONNRESET' ||

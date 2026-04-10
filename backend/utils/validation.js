@@ -11,8 +11,20 @@ const validateUsername = (username) => {
 };
 
 const validatePassword = (password) => {
-  // Password minimal 6 karakter
-  return password && password.length >= 6;
+  // Password must be at least 8 characters with at least one uppercase, one lowercase, and one digit
+  if (!password || password.length < 8) {
+    return false;
+  }
+  
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasDigit = /\d/.test(password);
+  
+  return hasUpperCase && hasLowerCase && hasDigit;
+};
+
+const getPasswordValidationMessage = () => {
+  return 'Password minimal 8 karakter, mengandung huruf besar, huruf kecil, dan angka';
 };
 
 const validateAmount = (amount) => {
@@ -42,6 +54,7 @@ module.exports = {
   validateEmail,
   validateUsername,
   validatePassword,
+  getPasswordValidationMessage,
   validateAmount,
   validateDate,
   validateTime,
