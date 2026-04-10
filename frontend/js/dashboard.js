@@ -512,3 +512,321 @@ async function undoLastTransaction() {
     },
   });
 }
+
+// ==================== FLOATING TRANSACTION MODAL ====================
+let currentTransactionType = 'expense';
+let floatCategories = [];
+
+// Toggle FAB menu
+function toggleFabMenu() {
+  const fabMain = document.getElementById('fabMain');
+  const fabMenu = document.getElementById('fabMenu');
+  
+  fabMain.classList.toggle('active');
+  fabMenu.classList.toggle('active');
+}
+
+// Open transaction modal
+function openTransactionModal(type) {
+  currentTransactionType = type;
+  
+  // Close FAB menu
+  toggleFabMenu();
+  
+  // Set modal title and submit button color
+  const title = document.getElementById('transactionModalTitle');
+  const submitBtn = document.getElementById('floatSubmitBtn');
+  
+  if (type === 'income') {
+    title.textContent = '↑ Tambah Pendapatan';
+    submitBtn.className = 'btn btn-secondary btn-lg';
+  } else {
+    title.textContent = '↓ Tambah Pengeluaran';
+    submitBtn.className = 'btn btn-danger btn-lg';
+  }
+  
+  // Set current date and time
+  const now = new Date();
+  document.getElementById('floatDate').valueAsDate = now;
+  document.getElementById('floatTime').value = now.toTimeString().substring(0, 5);
+  
+  // Load categories
+  loadFloatCategories();
+  
+  // Clear form
+  document.getElementById('floatAmount').value = '';
+  document.getElementById('floatCategory').value = '';
+  document.getElementById('floatDescription').value = '';
+  document.getElementById('floatIsRecurring').checked = false;
+  document.getElementById('floatAttachment').value = '';
+  document.getElementById('floatFormattedAmount').textContent = '';
+  document.getElementById('floatBudgetWarning').classList.remove('show');
+  
+  // Show modal
+  document.getElementById('transactionModal').classList.add('active');
+  
+  // Focus on amount input
+  setTimeout(() => {
+    document.getElementById('floatAmount').focus();
+  }, 300);
+}
+
+// Close transaction modal
+function closeTransactionModal() {
+  document.getElementById('transactionModal').classList.remove('active');
+}
+
+// Load categories for floating modal
+async function loadFloatCategories() {
+  try {
+    const response = await apiCall('/categories', { showLoading: false });
+    floatCategories = response.data.filter(c => c.type === currentTransactionType);
+    
+    const datalist = document.getElementById('floatCategories');
+    if (!datalist) return;
+    
+    datalist.innerHTML = '';
+    
+    // Sort categories alphabetically
+    floatCategories.sort((a, b) => a.name.localeCompare(b.name));
+    
+    floatCategories.forEach(cat => {
+      const option = document.createElement('option');
+      option.value = cat.name;
+      datalist.appendChild(option);
+    });
+  } catch (error) {
+    // ignore
+  }
+}
+
+// Parse amount input for floating modal
+function parseFloatAmountInput(value) {
+  if (!value) return NaN;
+  let cleaned = String(value).trim();
+  cleaned = cleaned.replace(/[^\d.,-]/g, '');
+  
+  if (cleaned.includes('.') && cleaned.includes(',')) {
+    cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+  } else if ((cleaned.match(/\./g) || []).length > 1 && !cleaned.includes(',')) {
+    cleaned = cleaned.replace(/\./g, '');
+  } else if (!cleaned.includes(',') && (cleaned.match(/\./g) || []).length === 1) {
+    const [intPart, fracPart] = cleaned.split('.');
+    if (fracPart && fracPart.length === 3) {
+      cleaned = intPart + fracPart;
+    }
+  } else if ((cleaned.match(/,/g) || []).length > 1 && !cleaned.includes('.')) {
+    cleaned = cleaned.replace(/,/g, '');
+  } else if (cleaned.includes(',') && !cleaned.includes('.')) {
+    cleaned = cleaned.replace(',', '.');
+  }
+  
+  return parseFloat(cleaned);
+}
+
+// Format amount input for floating modal
+function formatFloatAmountInput(input) {
+  if (!input) return;
+  
+  const raw = input.value;
+  const normalized = raw.replace(/[^\d.,-]/g, '');
+  
+  let separator = '';
+  let intPart = normalized;
+  let fracPart = '';
+  
+  if (normalized.includes('.') && normalized.includes(',')) {
+    separator = ',';
+    const parts = normalized.split(',');
+    intPart = parts[0].replace(/\./g, '');
+    fracPart = parts[1] || '';
+  } else if (normalized.includes('.') && !normalized.includes(',')) {
+    const parts = normalized.split('.');
+    intPart = parts[0].replace(/\./g, '');
+    fracPart = parts[1] || '';
+    
+    if (fracPart.length <= 2) {
+      separator = ',';
+    } else {
+      intPart = intPart + fracPart;
+      fracPart = '';
+    }
+  } else if (normalized.includes(',') && !normalized.includes('.')) {
+    const parts = normalized.split(',');
+    intPart = parts[0].replace(/,/g, '');
+    fracPart = parts[1] || '';
+    separator = ',';
+  }
+  
+  intPart = intPart.replace(/^0+(?!$)/, '');
+  const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  
+  let formatted = formattedInt;
+  if (separator && fracPart !== '') {
+    formatted += separator + fracPart;
+  }
+  
+  input.value = formatted;
+  input.setSelectionRange(formatted.length, formatted.length);
+}
+
+// Update formatted amount display for floating modal
+function updateFloatFormattedAmount() {
+  const amount = parseFloatAmountInput(document.getElementById('floatAmount').value);
+  const preview = document.getElementById('floatFormattedAmount');
+  if (!preview) return;
+  
+  if (!amount || isNaN(amount)) {
+    preview.textContent = '';
+    return;
+  }
+  
+  preview.textContent = `Rupiah: ${formatCurrency(amount)}`;
+}
+
+// Find category by name
+function findFloatCategoryByName(name) {
+  if (!name) return null;
+  const normalized = name.trim().toLowerCase();
+  return floatCategories.find(c => c.name.toLowerCase() === normalized) || null;
+}
+
+// Initialize floating form on DOMContentLoaded
+document.addEventListener('DOMContentLoaded', () => {
+  const floatAmountInput = document.getElementById('floatAmount');
+  if (floatAmountInput) {
+    floatAmountInput.addEventListener('input', (e) => {
+      formatFloatAmountInput(e.target);
+      updateFloatFormattedAmount();
+    });
+  }
+  
+  const floatForm = document.getElementById('floatingTransactionForm');
+  if (floatForm) {
+    floatForm.addEventListener('submit', handleFloatFormSubmit);
+  }
+});
+
+// Handle floating form submission
+async function handleFloatFormSubmit(e) {
+  e.preventDefault();
+  clearAlerts();
+  
+  const amount = parseFloatAmountInput(document.getElementById('floatAmount').value);
+  const categoryName = document.getElementById('floatCategory').value.trim();
+  const description = document.getElementById('floatDescription').value.trim();
+  const transactionDate = document.getElementById('floatDate').value;
+  const transactionTime = document.getElementById('floatTime').value;
+  const isRecurring = document.getElementById('floatIsRecurring')?.checked;
+  const attachmentFile = document.getElementById('floatAttachment')?.files?.[0];
+  
+  // Validation
+  if (!amount || amount <= 0 || isNaN(amount)) {
+    showAlert('Nominal harus diisi dan lebih dari 0', 'danger');
+    return;
+  }
+  
+  if (!categoryName) {
+    showAlert('Kategori harus diisi', 'danger');
+    return;
+  }
+  
+  if (!transactionDate) {
+    showAlert('Tanggal harus diisi', 'danger');
+    return;
+  }
+  
+  if (!transactionTime) {
+    showAlert('Jam harus diisi', 'danger');
+    return;
+  }
+  
+  // Disable submit button
+  const submitBtn = document.getElementById('floatSubmitBtn');
+  const originalText = submitBtn.textContent;
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<span class="spinner"></span> Loading...';
+  
+  try {
+    // Find or create category
+    let categoryId;
+    const existingCategory = findFloatCategoryByName(categoryName);
+    
+    if (existingCategory) {
+      categoryId = existingCategory.id;
+    } else {
+      // Create new category
+      const createResponse = await apiCall('/categories', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: categoryName,
+          type: currentTransactionType,
+        }),
+      });
+      
+      if (createResponse && createResponse.data && createResponse.data.id) {
+        categoryId = createResponse.data.id;
+        floatCategories.push({ id: categoryId, name: categoryName, type: currentTransactionType });
+      }
+    }
+    
+    if (!categoryId) {
+      showAlert('Kategori tidak dapat diproses. Silakan coba lagi.', 'danger');
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
+      return;
+    }
+    
+    // Upload attachment if exists
+    let attachmentPath = null;
+    if (attachmentFile) {
+      const formData = new FormData();
+      formData.append('file', attachmentFile);
+      
+      const uploadResponse = await fetch('/api/upload', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      
+      const uploadData = await uploadResponse.json();
+      if (!uploadResponse.ok) {
+        throw new Error(uploadData?.message || 'Gagal mengunggah lampiran');
+      }
+      
+      attachmentPath = uploadData.data?.path;
+    }
+    
+    // Submit transaction
+    const payload = {
+      amount,
+      type: currentTransactionType,
+      category_id: categoryId,
+      description: description || null,
+      transaction_date: transactionDate,
+      transaction_time: transactionTime,
+      is_recurring: !!isRecurring,
+      attachment_path: attachmentPath || null,
+    };
+    
+    await apiCall('/transactions', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    
+    // Show success message
+    const typeLabel = currentTransactionType === 'income' ? 'Pendapatan' : 'Pengeluaran';
+    showToast(`✓ ${typeLabel} sebesar ${formatCurrency(amount)} berhasil disimpan!`, 'success');
+    
+    // Close modal
+    closeTransactionModal();
+    
+    // Reload transactions
+    loadTransactions();
+    
+  } catch (error) {
+    showAlert(error.message || 'Terjadi kesalahan saat menyimpan transaksi', 'danger');
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalText;
+  }
+}
