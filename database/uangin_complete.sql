@@ -23,9 +23,8 @@ CREATE TABLE `users` (
   `phone` VARCHAR(20),
   `photo_url` VARCHAR(255),
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  INDEX `idx_username` (`username`),
-  INDEX `idx_email` (`email`)
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  -- Note: UNIQUE constraints already create indexes, no need for explicit INDEX
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ==================== CATEGORIES TABLE ====================
@@ -48,11 +47,11 @@ CREATE TABLE `transactions` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
   `user_id` INT NOT NULL,
   `category_id` INT NOT NULL,
-  `amount` DECIMAL(15, 2) NOT NULL,
+  `amount` DECIMAL(15, 2) NOT NULL CHECK (`amount` > 0),
   `type` ENUM('income', 'expense') NOT NULL,
   `description` VARCHAR(255),
   `transaction_date` DATE NOT NULL,
-  `transaction_time` TIME NOT NULL,
+  `transaction_time` TIME NOT NULL DEFAULT '00:00:00',
   `balance_after` DECIMAL(15, 2),
   `is_recurring` BOOLEAN DEFAULT FALSE,
   `recurring_id` INT,
@@ -61,11 +60,12 @@ CREATE TABLE `transactions` (
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`) ON DELETE RESTRICT,
+  FOREIGN KEY (`recurring_id`) REFERENCES `recurring_transactions`(`id`) ON DELETE SET NULL,
+  -- Removed redundant idx_user_month (duplicate of idx_user_date)
   INDEX `idx_user_date` (`user_id`, `transaction_date`),
   INDEX `idx_user_datetime` (`user_id`, `transaction_date`, `transaction_time`),
-  INDEX `idx_user_month` (`user_id`, `transaction_date`),
-  INDEX `idx_type` (`type`),
   INDEX `idx_category` (`category_id`)
+  -- Note: idx_type removed - low selectivity on ENUM with only 2 values
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ==================== RECURRING TRANSACTIONS TABLE ====================
@@ -73,13 +73,13 @@ CREATE TABLE `recurring_transactions` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
   `user_id` INT NOT NULL,
   `category_id` INT NOT NULL,
-  `amount` DECIMAL(15, 2) NOT NULL,
+  `amount` DECIMAL(15, 2) NOT NULL CHECK (`amount` > 0),
   `type` ENUM('income', 'expense') NOT NULL,
   `description` VARCHAR(255),
-  `frequency` ENUM('monthly') DEFAULT 'monthly',
-  `day_of_month` INT,
+  `frequency` ENUM('daily', 'weekly', 'monthly', 'yearly') DEFAULT 'monthly',
+  `day_of_month` INT CHECK (`day_of_month` IS NULL OR `day_of_month` BETWEEN 1 AND 31),
   `start_date` DATE NOT NULL,
-  `end_date` DATE,
+  `end_date` DATE CHECK (`end_date` IS NULL OR `end_date` >= `start_date`),
   `is_active` BOOLEAN DEFAULT TRUE,
   `last_generated` DATE,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -87,7 +87,7 @@ CREATE TABLE `recurring_transactions` (
   FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`) ON DELETE RESTRICT,
   INDEX `idx_user_active` (`user_id`, `is_active`),
-  INDEX `idx_next_date` (`user_id`, `day_of_month`)
+  INDEX `idx_processing` (`is_active`, `last_generated`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ==================== BUDGETS TABLE ====================
@@ -95,10 +95,10 @@ CREATE TABLE `budgets` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
   `user_id` INT NOT NULL,
   `category_id` INT NOT NULL,
-  `limit_amount` DECIMAL(15, 2) NOT NULL,
-  `month` INT NOT NULL,
-  `year` INT NOT NULL,
-  `spent_amount` DECIMAL(15, 2) DEFAULT 0,
+  `limit_amount` DECIMAL(15, 2) NOT NULL CHECK (`limit_amount` > 0),
+  `month` INT NOT NULL CHECK (`month` BETWEEN 1 AND 12),
+  `year` INT NOT NULL CHECK (`year` BETWEEN 2000 AND 2100),
+  `spent_amount` DECIMAL(15, 2) DEFAULT 0 CHECK (`spent_amount` >= 0),
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY `unique_user_category_period` (`user_id`, `category_id`, `month`, `year`),
@@ -113,17 +113,18 @@ CREATE TABLE `undo_log` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
   `user_id` INT NOT NULL,
   `transaction_id` INT,
-  `action` VARCHAR(50),
+  `action` ENUM('CREATE', 'UPDATE', 'DELETE') NOT NULL,
   `old_data` JSON,
   `new_data` JSON,
   `action_timestamp` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
-  INDEX `idx_user_timestamp` (`user_id`, `action_timestamp` DESC)
+  INDEX `idx_user_timestamp` (`user_id`, `action_timestamp` DESC),
+  INDEX `idx_transaction` (`transaction_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ==================== CREATE VIEWS ====================
 CREATE VIEW `v_monthly_summary` AS
-SELECT 
+SELECT
   `t`.`user_id`,
   YEAR(`t`.`transaction_date`) as `year`,
   MONTH(`t`.`transaction_date`) as `month`,
@@ -134,7 +135,7 @@ FROM `transactions` `t`
 GROUP BY `t`.`user_id`, YEAR(`t`.`transaction_date`), MONTH(`t`.`transaction_date`);
 
 CREATE VIEW `v_category_summary` AS
-SELECT 
+SELECT
   `t`.`user_id`,
   `c`.`id` as `category_id`,
   `c`.`name` as `category_name`,
@@ -144,8 +145,11 @@ SELECT
   COUNT(`t`.`id`) as `transaction_count`,
   SUM(`t`.`amount`) as `total_amount`
 FROM `transactions` `t`
-JOIN `categories` `c` ON `t`.`category_id` = `c`.`id`
+JOIN `categories` `c` ON `t`.`category_id` = `c`.`id` AND `t`.`user_id` = `c`.`user_id`
 GROUP BY `t`.`user_id`, `c`.`id`, `c`.`name`, `t`.`type`, YEAR(`t`.`transaction_date`), MONTH(`t`.`transaction_date`);
+
+-- Note: balance_after is denormalized for performance.
+-- Always update via updateAllBalancesAfter() to maintain consistency.
 
 -- ============================================================
 -- Database Schema Complete - Ready for Import
