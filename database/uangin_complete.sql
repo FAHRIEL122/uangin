@@ -60,12 +60,9 @@ CREATE TABLE `transactions` (
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`) ON DELETE RESTRICT,
-  FOREIGN KEY (`recurring_id`) REFERENCES `recurring_transactions`(`id`) ON DELETE SET NULL,
-  -- Removed redundant idx_user_month (duplicate of idx_user_date)
   INDEX `idx_user_date` (`user_id`, `transaction_date`),
   INDEX `idx_user_datetime` (`user_id`, `transaction_date`, `transaction_time`),
   INDEX `idx_category` (`category_id`)
-  -- Note: idx_type removed - low selectivity on ENUM with only 2 values
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ==================== RECURRING TRANSACTIONS TABLE ====================
@@ -150,6 +147,12 @@ GROUP BY `t`.`user_id`, `c`.`id`, `c`.`name`, `t`.`type`, YEAR(`t`.`transaction_
 
 -- Note: balance_after is denormalized for performance.
 -- Always update via updateAllBalancesAfter() to maintain consistency.
+
+-- ==================== ADD MISSING FOREIGN KEY ====================
+-- This must be added after recurring_transactions table exists
+ALTER TABLE `transactions`
+  ADD CONSTRAINT `fk_recurring_transaction`
+  FOREIGN KEY (`recurring_id`) REFERENCES `recurring_transactions`(`id`) ON DELETE SET NULL;
 
 -- ============================================================
 -- Database Schema Complete - Ready for Import
