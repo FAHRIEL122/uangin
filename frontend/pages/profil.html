@@ -5,181 +5,141 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Profil - UANGIN</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="/css/style.css">
-  <link rel="stylesheet" href="/css/profile.css">
 </head>
 <body>
   <!-- Navigation -->
   <nav class="navbar">
     <div class="navbar-container">
       <a href="/dashboard" class="navbar-brand">
-        <span class="brand-icon">💰</span>
-        <span class="brand-text">UANGIN</span>
+        <div class="navbar-brand-icon">💰</div>
+        <span>UANGIN</span>
       </a>
-      <button class="navbar-toggle" id="navbarToggle">
-        <span></span>
-        <span></span>
-        <span></span>
+      <button class="hamburger-toggle" id="navbarToggle">
+        <span></span><span></span><span></span>
       </button>
       <div class="navbar-menu" id="navbarMenu">
-        <a href="/dashboard" class="navbar-item">
-          <span class="item-icon">📊</span>
-          <span>Dashboard</span>
-        </a>
-        <a href="/pendapatan" class="navbar-item income">
-          <span class="item-icon">➕</span>
-          <span>Pendapatan</span>
-        </a>
-        <a href="/pengeluaran" class="navbar-item expense">
-          <span class="item-icon">➖</span>
-          <span>Pengeluaran</span>
-        </a>
-        <a href="/laporan" class="navbar-item">
-          <span class="item-icon">📈</span>
-          <span>Laporan</span>
-        </a>
-        <a href="/kalender" class="navbar-item">
-          <span class="item-icon">📅</span>
-          <span>Kalender</span>
-        </a>
-        <a href="/profil" class="navbar-item active">
-          <span class="item-icon">👤</span>
-          <span>Profil</span>
-        </a>
+        <a href="/dashboard" class="navbar-item">Dashboard</a>
+        <button class="navbar-item income" onclick="window.location.href='/pendapatan'">Pendapatan</button>
+        <button class="navbar-item expense" onclick="window.location.href='/pengeluaran'">Pengeluaran</button>
+        <a href="/laporan" class="navbar-item">Laporan</a>
+        <a href="/kalender" class="navbar-item">Kalender</a>
+        <a href="/profil" class="navbar-item active">Profil</a>
         <div class="navbar-divider"></div>
-        <button class="navbar-item logout" id="logoutBtn">
-          <span class="item-icon">🚪</span>
-          <span>Logout</span>
-        </button>
+        <button class="navbar-item logout" id="logoutBtn">Logout</button>
         <button class="theme-toggle" id="themeToggle" title="Toggle Dark Mode">🌙</button>
       </div>
     </div>
   </nav>
 
   <!-- Main Content -->
-  <main class="main-content">
-    <div class="profile-header">
-      <h1>👤 Profil Saya</h1>
-      <p>Kelola akun dan pengaturan Anda</p>
+  <main class="main-content" style="max-width: 800px;">
+    <!-- Profile Header -->
+    <div style="text-align: center; margin-bottom: var(--space-8);">
+      <div style="width: 100px; height: 100px; background: var(--primary-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto var(--space-4); font-size: 2.5rem;" id="profileAvatar">
+        👤
+      </div>
+      <h1 style="font-size: 1.5rem; font-weight: 700; margin-bottom: var(--space-1);" id="profileName">-</h1>
+      <p class="text-muted" style="font-size: 0.9rem;" id="profileEmail">-</p>
+      <div style="margin-top: var(--space-4); display: flex; justify-content: center; gap: var(--space-6);" id="profileStats">
+        <div style="text-align: center;">
+          <div style="font-size: 1.25rem; font-weight: 700;" id="statJoined">-</div>
+          <div class="text-muted" style="font-size: 0.8rem;">Bergabung</div>
+        </div>
+        <div style="text-align: center;">
+          <div style="font-size: 1.25rem; font-weight: 700;" id="statTransactions">0</div>
+          <div class="text-muted" style="font-size: 0.8rem;">Transaksi</div>
+        </div>
+        <div style="text-align: center;">
+          <div style="font-size: 1.25rem; font-weight: 700;" id="statCategories">0</div>
+          <div class="text-muted" style="font-size: 0.8rem;">Kategori</div>
+        </div>
+      </div>
     </div>
 
-    <div class="profile-grid">
-      <!-- Profile Info Card -->
-      <div class="card">
-        <div class="card-header">
-          <h3>📝 Informasi Profil</h3>
-        </div>
-        <form id="profileForm">
-          <div class="form-group">
-            <label class="form-label">👤 Username</label>
-            <input type="text" id="username" class="form-input" disabled>
-          </div>
-          
-          <div class="form-group">
-            <label class="form-label">📧 Email</label>
-            <input type="email" id="email" class="form-input" disabled>
-          </div>
-          
-          <div class="form-group">
-            <label for="full_name" class="form-label">Nama Lengkap</label>
-            <input type="text" id="full_name" class="form-input" placeholder="Masukkan nama lengkap">
-          </div>
-          
-          <div class="form-group">
-            <label for="phone" class="form-label">📱 Nomor Telepon</label>
-            <input type="tel" id="phone" class="form-input" placeholder="08xxxxxxxxxx">
-          </div>
-          
-          <div class="form-group">
-            <label for="photo_url" class="form-label">🖼️ URL Foto Profil</label>
-            <input type="url" id="photo_url" class="form-input" placeholder="https://example.com/photo.jpg">
-          </div>
-          
-          <button type="submit" class="btn btn-primary btn-block">
-            💾 Simpan Perubahan
-          </button>
-        </form>
+    <!-- Profile Info -->
+    <div class="card" style="margin-bottom: var(--space-4);">
+      <div class="card-header">
+        <h3 class="card-title">Informasi Profil</h3>
       </div>
-
-      <!-- Change Password Card -->
-      <div class="card">
-        <div class="card-header">
-          <h3>🔒 Ubah Password</h3>
+      <form id="profileForm">
+        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--space-4);">
+          <div class="form-group">
+            <label class="form-label">Username</label>
+            <input type="text" id="username" class="form-input" disabled style="background: var(--bg-secondary);">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" id="email" class="form-input" disabled style="background: var(--bg-secondary);">
+          </div>
         </div>
-        <form id="passwordForm">
+        <div class="form-group">
+          <label class="form-label">Nama Lengkap</label>
+          <input type="text" id="full_name" class="form-input" placeholder="Masukkan nama lengkap">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nomor Telepon</label>
+          <input type="tel" id="phone" class="form-input" placeholder="08xxxxxxxxxx">
+        </div>
+        <div style="text-align: right;">
+          <button type="submit" class="btn btn-primary">💾 Simpan Perubahan</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Change Password -->
+    <div class="card" style="margin-bottom: var(--space-4);">
+      <div class="card-header">
+        <h3 class="card-title">Ubah Password</h3>
+      </div>
+      <form id="passwordForm">
+        <div class="form-group">
+          <label class="form-label">Password Saat Ini</label>
+          <input type="password" id="current_password" class="form-input" required>
+        </div>
+        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--space-4);">
           <div class="form-group">
-            <label for="current_password" class="form-label">Password Saat Ini</label>
-            <input type="password" id="current_password" class="form-input" required>
+            <label class="form-label">Password Baru</label>
+            <input type="password" id="new_password" class="form-input" required minlength="8">
           </div>
-          
           <div class="form-group">
-            <label for="new_password" class="form-label">Password Baru</label>
-            <input type="password" id="new_password" class="form-input" required>
-            <div class="form-help">Minimal 8 karakter, huruf besar, huruf kecil, dan angka</div>
-          </div>
-          
-          <div class="form-group">
-            <label for="confirm_password" class="form-label">Konfirmasi Password Baru</label>
+            <label class="form-label">Konfirmasi Password</label>
             <input type="password" id="confirm_password" class="form-input" required>
           </div>
-          
-          <button type="submit" class="btn btn-warning btn-block">
-            🔑 Ubah Password
-          </button>
-        </form>
-      </div>
-
-      <!-- Statistics Card -->
-      <div class="card">
-        <div class="card-header">
-          <h3>📊 Statistik Akun</h3>
         </div>
-        <div class="stats-grid">
-          <div class="stat-item">
-            <div>
-              <div class="stat-label">📅 Bergabung Sejak</div>
-              <div class="stat-value" id="joinedDate">-</div>
-            </div>
+        <p class="text-muted" style="font-size: 0.8rem; margin-bottom: var(--space-4);">Minimal 8 karakter, kombinasi huruf besar, kecil, dan angka</p>
+        <div style="text-align: right;">
+          <button type="submit" class="btn btn-primary">🔑 Ubah Password</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Settings -->
+    <div class="card" style="margin-bottom: var(--space-4);">
+      <div class="card-header">
+        <h3 class="card-title">Pengaturan</h3>
+      </div>
+      <div style="border-bottom: 1px solid var(--border); padding: var(--space-4) 0;">
+        <div class="flex items-center justify-between">
+          <div>
+            <div style="font-weight: 500; font-size: 0.9rem;">🌙 Mode Gelap</div>
+            <div class="text-muted" style="font-size: 0.8rem;">Aktifkan tampilan gelap</div>
           </div>
-          <div class="stat-item">
-            <div>
-              <div class="stat-label">💳 Total Transaksi</div>
-              <div class="stat-value" id="totalTransactions">-</div>
-            </div>
-          </div>
-          <div class="stat-item">
-            <div>
-              <div class="stat-label">📂 Kategori Aktif</div>
-              <div class="stat-value" id="totalCategories">-</div>
-            </div>
-          </div>
+          <label class="toggle-switch" style="position: relative; display: inline-block; width: 48px; height: 24px;">
+            <input type="checkbox" id="themeSwitch" style="opacity: 0; width: 0; height: 0;">
+            <span style="position: absolute; cursor: pointer; inset: 0; background: var(--gray-300); border-radius: 24px; transition: 0.3s;" id="themeSwitchBg"></span>
+            <span style="position: absolute; content: ''; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s;" id="themeSwitchThumb"></span>
+          </label>
         </div>
       </div>
-
-      <!-- Settings Card -->
-      <div class="card">
-        <div class="card-header">
-          <h3>⚙️ Pengaturan</h3>
-        </div>
-        <div class="settings-list">
-          <div class="setting-item">
-            <div>
-              <div class="setting-label">🌙 Mode Gelap</div>
-              <div class="setting-desc">Aktifkan tampilan gelap</div>
-            </div>
-            <button class="toggle-switch" id="themeSwitch">
-              <span class="toggle-slider"></span>
-            </button>
+      <div style="padding: var(--space-4) 0;">
+        <div class="flex items-center justify-between">
+          <div>
+            <div style="font-weight: 500; font-size: 0.9rem;">📥 Export Data</div>
+            <div class="text-muted" style="font-size: 0.8rem;">Download semua data Anda</div>
           </div>
-          
-          <div class="setting-item">
-            <div>
-              <div class="setting-label">📥 Export Data</div>
-              <div class="setting-desc">Download semua data Anda</div>
-            </div>
-            <button class="btn btn-primary btn-sm" id="exportBtn">Export</button>
-          </div>
+          <button class="btn btn-primary btn-sm" id="exportBtn">Export</button>
         </div>
       </div>
     </div>
