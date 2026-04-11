@@ -1,53 +1,42 @@
-// JWT Helper Functions
 const jwt = require('jsonwebtoken');
 
-// JWT secret must be configured - no fallbacks for security
-const jwtSecret = process.env.JWT_SECRET;
-
-if (!jwtSecret) {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('FATAL: JWT_SECRET must be set in production environment');
-  }
-  console.warn('WARNING: JWT_SECRET is not set. Using insecure dev-only secret. SET THIS IN PRODUCTION!');
-  // In development only, generate a random secret if not provided
-  // This is ONLY for local development convenience
-  const crypto = require('crypto');
-  module.exports._devSecret = crypto.randomBytes(64).toString('hex');
+// Generate JWT token
+function generateToken(userId, username) {
+  return jwt.sign(
+    { userId, username },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+  );
 }
 
-const getJwtSecret = () => {
-  return jwtSecret || module.exports._devSecret;
-};
-
-const generateToken = (userId) => {
-  const secret = getJwtSecret();
-  if (!secret) {
-    throw new Error('JWT secret is not configured');
-  }
-
-  return jwt.sign(
-    { userId },
-    secret,
-    { expiresIn: '7d' }
-  );
-};
-
-const verifyToken = (token) => {
+// Verify JWT token
+function verifyToken(token) {
   try {
-    const secret = getJwtSecret();
-    if (!secret) return null;
-    return jwt.verify(token, secret);
+    return jwt.verify(token, process.env.JWT_SECRET);
   } catch (error) {
     return null;
   }
-};
+}
 
-const decodeToken = (token) => {
-  return jwt.decode(token);
-};
+// Get expiration date
+function getTokenExpiration() {
+  const expiresIn = process.env.JWT_EXPIRES_IN || '7d';
+  const match = expiresIn.match(/(\d+)([dhs])/);
+  if (!match) return 7 * 24 * 60 * 60 * 1000; // 7 days default
+  
+  const value = parseInt(match[1]);
+  const unit = match[2];
+  
+  switch (unit) {
+    case 'd': return value * 24 * 60 * 60 * 1000;
+    case 'h': return value * 60 * 60 * 1000;
+    case 's': return value * 1000;
+    default: return 7 * 24 * 60 * 60 * 1000;
+  }
+}
 
 module.exports = {
   generateToken,
   verifyToken,
-  decodeToken,
+  getTokenExpiration
 };

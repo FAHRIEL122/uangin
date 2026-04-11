@@ -1,118 +1,158 @@
-// Authentication Module
-document.addEventListener('DOMContentLoaded', () => {
-  // Branding validation (non-blocking)
-  validateBranding();
+// ============================================
+// UANGIN - Authentication Logic
+// ============================================
 
-  // Redirect if already authenticated
-  redirectIfAuthenticated();
+// Redirect if already logged in
+redirectIfAuth();
 
-  const loginForm = document.getElementById('loginForm');
-  const registerForm = document.getElementById('registerForm');
+// Login form handler
+const loginForm = document.getElementById('loginForm');
+if (loginForm) {
+  loginForm.addEventListener('submit', handleLogin);
+}
 
-  if (loginForm) {
-    loginForm.addEventListener('submit', handleLogin);
-  }
-
-  if (registerForm) {
-    registerForm.addEventListener('submit', handleRegister);
-  }
-});
-
-// Handle Login
-const handleLogin = async (e) => {
+async function handleLogin(e) {
   e.preventDefault();
-  clearAlerts();
-
+  
+  // Clear errors
+  clearErrors();
+  
   const username = document.getElementById('username').value.trim();
-  const password = document.getElementById('password').value.trim();
-
-  if (!username || !password) {
-    showAlert('Username dan password harus diisi', 'danger');
-    return;
+  const password = document.getElementById('password').value;
+  
+  // Validate
+  let hasError = false;
+  
+  if (!username) {
+    showError('usernameError', 'Username diperlukan');
+    hasError = true;
   }
-
-  disableButton('loginBtn');
-  showLoading('Memproses login...');
-
+  
+  if (!password) {
+    showError('passwordError', 'Password diperlukan');
+    hasError = true;
+  }
+  
+  if (hasError) return;
+  
+  // Disable button
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Loading...';
+  
   try {
-    const response = await apiCall('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ username, password }),
-    });
-
-    setUser({
-      userId: response.data.userId,
-      username: response.data.username,
-      email: response.data.email,
-    });
-
-    showAlert('Login berhasil! Mengalihkan...', 'success');
+    const response = await post('/auth/login', { username, password });
     
+    // Save auth data
+    saveAuthData(response.data.token, response.data.user);
+    
+    // Show success
+    showToast('Login berhasil! Mengalihkan...', 'success');
+    
+    // Redirect to dashboard
     setTimeout(() => {
       window.location.href = '/dashboard';
     }, 1000);
+    
   } catch (error) {
-    showAlert(error.message, 'danger');
-    enableButton('loginBtn', 'Masuk');
-  } finally {
-    hideLoading();
+    showError('generalError', error.message || 'Login gagal');
+    btn.disabled = false;
+    btn.innerHTML = 'Login';
   }
-};
+}
 
-// Handle Register
-const handleRegister = async (e) => {
+// Register form handler
+const registerForm = document.getElementById('registerForm');
+if (registerForm) {
+  registerForm.addEventListener('submit', handleRegister);
+}
+
+async function handleRegister(e) {
   e.preventDefault();
-  clearAlerts();
-
+  
+  // Clear errors
+  clearErrors();
+  
   const username = document.getElementById('username').value.trim();
   const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value.trim();
-  const fullName = document.getElementById('fullName').value.trim();
-
-  if (!username || !email || !password) {
-    showAlert('Username, email, dan password harus diisi', 'danger');
-    return;
+  const full_name = document.getElementById('full_name').value.trim();
+  const password = document.getElementById('password').value;
+  const confirmPassword = document.getElementById('confirmPassword').value;
+  
+  // Validate
+  let hasError = false;
+  
+  if (!username || username.length < 4 || username.length > 20) {
+    showError('usernameError', 'Username harus 4-20 karakter');
+    hasError = true;
+  } else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+    showError('usernameError', 'Username hanya boleh berisi huruf, angka, dan underscore');
+    hasError = true;
   }
-
-  if (username.length < 4 || username.length > 20) {
-    showAlert('Username harus 4-20 karakter', 'danger');
-    return;
+  
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showError('emailError', 'Format email tidak valid');
+    hasError = true;
   }
-
-  if (password.length < 6) {
-    showAlert('Password minimal 6 karakter', 'danger');
-    return;
+  
+  if (!password || password.length < 8) {
+    showError('passwordError', 'Password minimal 8 karakter');
+    hasError = true;
+  } else if (!/[A-Z]/.test(password)) {
+    showError('passwordError', 'Password harus mengandung huruf besar');
+    hasError = true;
+  } else if (!/[a-z]/.test(password)) {
+    showError('passwordError', 'Password harus mengandung huruf kecil');
+    hasError = true;
+  } else if (!/[0-9]/.test(password)) {
+    showError('passwordError', 'Password harus mengandung angka');
+    hasError = true;
   }
-
-  disableButton('registerBtn');
-  showLoading('Memproses pendaftaran...');
-
+  
+  if (password !== confirmPassword) {
+    showError('confirmPasswordError', 'Password tidak cocok');
+    hasError = true;
+  }
+  
+  if (hasError) return;
+  
+  // Disable button
+  const btn = document.getElementById('registerBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Loading...';
+  
   try {
-    const response = await apiCall('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({
-        username,
-        email,
-        password,
-        full_name: fullName || null,
-      }),
-    });
-
-    setUser({
-      userId: response.data.userId,
-      username: response.data.username,
-      email: response.data.email,
-    });
-
-    showAlert('Pendaftaran berhasil! Mengalihkan...', 'success');
+    const response = await post('/auth/register', { username, email, password, full_name });
     
+    // Save auth data
+    saveAuthData(response.data.token, response.data.user);
+    
+    // Show success
+    showToast('Registrasi berhasil! Mengalihkan...', 'success');
+    
+    // Redirect to dashboard
     setTimeout(() => {
       window.location.href = '/dashboard';
     }, 1000);
+    
   } catch (error) {
-    showAlert(error.message, 'danger');
-    enableButton('registerBtn', 'Daftar');
-  } finally {
-    hideLoading();
+    showError('generalError', error.message || 'Registrasi gagal');
+    btn.disabled = false;
+    btn.innerHTML = 'Daftar';
   }
-};
+}
+
+// Helper: Show error
+function showError(elementId, message) {
+  const element = document.getElementById(elementId);
+  if (element) {
+    element.textContent = message;
+  }
+}
+
+// Helper: Clear all errors
+function clearErrors() {
+  document.querySelectorAll('.form-error').forEach(el => {
+    el.textContent = '';
+  });
+}

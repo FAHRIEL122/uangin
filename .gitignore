@@ -1,4 +1,34 @@
+# Dependencies
 node_modules/
+package-lock.json
+yarn.lock
+
+# Environment Variables
 .env
+
+# Uploads
+uploads/
+
+# Logs
+logs/
 *.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Database
+*.sql.bak
+database/backups/
+
+# Build
+dist/
+build/

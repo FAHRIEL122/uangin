@@ -1,87 +1,28 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Terjadi Kesalahan - UANGIN</title>
-  <link rel="stylesheet" href="../css/style.css" />
-  <style>
-    body {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      padding: 24px;
-      background: var(--color-light);
-    }
-
-    .error-card {
-      max-width: 520px;
-      width: 100%;
-      background: white;
-      border-radius: 14px;
-      padding: 28px 26px;
-      box-shadow: var(--shadow-lg);
-      text-align: center;
-    }
-
-    .error-card h1 {
-      margin-bottom: 12px;
-      font-size: 28px;
-    }
-
-    .error-card p {
-      margin-bottom: 18px;
-      color: var(--color-gray);
-      line-height: 1.5;
-    }
-
-    .error-message {
-      margin: 14px 0;
-      padding: 14px 16px;
-      border-radius: 10px;
-      background: rgba(239, 68, 68, 0.1);
-      border: 1px solid rgba(239, 68, 68, 0.25);
-      color: var(--color-danger);
-      font-weight: 600;
-      word-break: break-word;
-    }
-
-    .btn-group {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-
-    @media (max-width: 500px) {
-      .error-card {
-        padding: 22px 18px;
-      }
-
-      .error-card h1 {
-        font-size: 24px;
-      }
-
-      .btn-group {
-        flex-direction: column;
-      }
-    }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Error - UANGIN</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/error.css">
 </head>
 <body>
-  <div class="error-card">
-    <h1>Oops! Terjadi kesalahan.</h1>
-    <p>Kami tidak dapat memuat data saat ini. Silakan coba lagi atau kembali ke halaman utama.</p>
-
-    <div class="error-message" id="errorMessage">Memuat...</div>
-
-    <div class="btn-group">
-      <a href="/login" class="btn btn-primary">Kembali ke Login</a>
-      <button class="btn btn-secondary" id="retryBtn">Muat Ulang</button>
+  <div class="error-container">
+    <div class="error-content">
+      <div class="error-icon">😵</div>
+      <h1 class="error-code" id="errorCode">404</h1>
+      <h2 class="error-title" id="errorTitle">Halaman Tidak Ditemukan</h2>
+      <p class="error-message" id="errorMessage">
+        Maaf, halaman yang Anda cari tidak ditemukan atau telah dipindahkan.
+      </p>
+      <div class="error-actions">
+        <a href="/dashboard" class="btn btn-primary btn-lg">Kembali ke Dashboard</a>
+        <a href="/" class="btn btn-light btn-lg">Halaman Utama</a>
+      </div>
     </div>
   </div>
-
-  <script src="../js/error.js"></script>
+  
+  <script src="/js/error.js"></script>
 </body>
 </html>

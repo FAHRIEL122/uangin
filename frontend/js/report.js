@@ -1,325 +1,439 @@
-﻿/* =========================
-   UANGIN – Report Module
-   ========================= */
+// ============================================
+// UANGIN - Reports Logic
+// ============================================
 
-let currentTab = 'ringkasan';
-const reportCache = {};
-let budgetCategories = [];
+requireAuth();
 
-const parseBudgetAmount = (value) => {
-  if (!value) return 0;
-  const cleaned = String(value)
-    .trim()
-    .replace(/[^\d.,-]/g, '');
-  const normalized = cleaned.replace(/\./g, '').replace(',', '.');
-  return parseFloat(normalized) || 0;
-};
+let currentMonth = null;
+let currentYear = null;
+let allTransactions = []; // Store all transactions for filtering
+let categories = []; // Store categories for filter
 
-const initBudgetForm = async () => {
-  const saveBtn = document.getElementById('saveBudgetBtn');
-  if (saveBtn) {
-    saveBtn.addEventListener('click', saveBudget);
+document.addEventListener('DOMContentLoaded', initializeReport);
+
+async function initializeReport() {
+  const { month, year } = getCurrentMonthYear();
+  currentMonth = month;
+  currentYear = year;
+  
+  document.getElementById('monthSelect').value = month;
+  
+  const yearSelect = document.getElementById('yearSelect');
+  for (let y = year - 5; y <= year + 1; y++) {
+    const option = document.createElement('option');
+    option.value = y;
+    option.textContent = y;
+    if (y === year) option.selected = true;
+    yearSelect.appendChild(option);
   }
-  await loadBudgetCategories();
-};
+  
+  setupTabs();
+  setupEventListeners();
+  await loadAllData();
+  
+  updateThemeIcon();
+}
 
-const loadBudgetCategories = async () => {
-  try {
-    const response = await apiCall('/categories', { showLoading: false });
-    budgetCategories = response.data.filter(c => c.type === 'expense');
-    const select = document.getElementById('budgetCategory');
-    if (!select) return;
-
-    const options = budgetCategories
-      .map(c => `<option value="${c.id}">${c.name}</option>`)
-      .join('');
-
-    select.innerHTML = `<option value="">Pilih kategori</option>${options}`;
-  } catch (err) {
-    // ignore
-  }
-};
-
-const saveBudget = async () => {
-  const categoryId = document.getElementById('budgetCategory')?.value;
-  const amountRaw = document.getElementById('budgetAmount')?.value;
-  const infoEl = document.getElementById('budgetFormInfo');
-  if (infoEl) infoEl.textContent = '';
-
-  const amount = parseBudgetAmount(amountRaw);
-  const month = document.getElementById('reportMonth')?.value;
-  const year = document.getElementById('reportYear')?.value;
-
-  if (!categoryId) {
-    showAlert('Silakan pilih kategori untuk budget', 'danger');
-    return;
-  }
-  if (!amount || amount <= 0) {
-    showAlert('Jumlah budget harus lebih dari 0', 'danger');
-    return;
-  }
-
-  disableButton('saveBudgetBtn');
-
-  try {
-    await apiCall('/budgets', {
-      method: 'POST',
-      body: JSON.stringify({
-        category_id: categoryId,
-        limit_amount: amount,
-        month,
-        year,
-      }),
-    });
-    showToast('Budget berhasil disimpan', 'success');
-    const amountInput = document.getElementById('budgetAmount');
-    if (amountInput) amountInput.value = '';
-    loadReport();
-  } catch (err) {
-    showAlert(err.message, 'danger');
-  } finally {
-    enableButton('saveBudgetBtn', 'Simpan Budget');
-  }
-};
-
-/* =========================
-   INIT
-   ========================= */
-document.addEventListener('DOMContentLoaded', () => {
-  if (!redirectIfNotAuthenticated()) return;
-
-  const { month, year } = getCurrentMonth();
-  document.getElementById('reportMonth').value = month;
-  document.getElementById('reportYear').value = year;
-
-  document.querySelectorAll('.tab-button').forEach(btn => {
-    btn.addEventListener('click', e => {
-      switchTab(e.target.dataset.tab);
-      loadReport();
+function setupTabs() {
+  const tabBtns = document.querySelectorAll('.tab-btn');
+  const tabPanes = document.querySelectorAll('.tab-pane');
+  
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      
+      tabBtns.forEach(b => b.classList.remove('active'));
+      tabPanes.forEach(p => p.classList.remove('active'));
+      
+      btn.classList.add('active');
+      document.getElementById(`${tab}-tab`).classList.add('active');
     });
   });
+}
 
-  initBudgetForm();
-  loadReport();
-});
-
-/* =========================
-   TAB HANDLER
-   ========================= */
-const switchTab = (tab) => {
-  currentTab = tab;
-
-  document.querySelectorAll('.tab-button').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.tab === tab);
+function setupEventListeners() {
+  document.getElementById('monthSelect').addEventListener('change', (e) => {
+    currentMonth = parseInt(e.target.value);
+    loadAllData();
   });
-
-  document.querySelectorAll('.report-section').forEach(section => {
-    section.classList.toggle('active', section.dataset.section === tab);
+  
+  document.getElementById('yearSelect').addEventListener('change', (e) => {
+    currentYear = parseInt(e.target.value);
+    loadAllData();
   });
+  
+  // Export button - show menu
+  document.getElementById('exportBtn').addEventListener('click', showExportMenu);
+  
+  document.getElementById('logoutBtn').addEventListener('click', logout);
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    toggleTheme();
+    updateThemeIcon();
+  });
+  
+  document.getElementById('navbarToggle').addEventListener('click', () => {
+    document.getElementById('navbarMenu').classList.toggle('active');
+  });
+  
+  // Report search and filters
+  setupFilterEventListeners();
+}
 
-  const titles = {
-    ringkasan: '📈 Laporan Ringkasan',
-    transaksi: '📋 Daftar Transaksi',
-    kategori: '🏷️ Laporan Kategori',
-    budget: '💰 Laporan Budget',
-    insight: '✨ Insight Otomatis'
-  };
-
-  document.getElementById('reportTitle').textContent = titles[tab];
-};
-
-/* =========================
-   CORE LOADER
-   ========================= */
-const loadReport = async () => {
-  clearAlerts();
-
-  const month = document.getElementById('reportMonth')?.value;
-  const year = document.getElementById('reportYear')?.value;
-  const cacheKey = `${currentTab}_${month}_${year}`;
-
-  showLoading(currentTab);
-
-  if (reportCache[cacheKey]) {
-    renderCachedData(currentTab, reportCache[cacheKey]);
-    hideLoading(currentTab);
-    return;
+// Setup filter event listeners
+function setupFilterEventListeners() {
+  const searchInput = document.getElementById('reportSearchInput');
+  const typeFilter = document.getElementById('reportTypeFilter');
+  const categoryFilter = document.getElementById('reportCategoryFilter');
+  const sortBy = document.getElementById('reportSortBy');
+  const clearBtn = document.getElementById('clearReportFilters');
+  
+  if (searchInput) {
+    searchInput.addEventListener('input', debounce(applyReportFilters, 300));
   }
+  
+  if (typeFilter) {
+    typeFilter.addEventListener('change', applyReportFilters);
+  }
+  
+  if (categoryFilter) {
+    categoryFilter.addEventListener('change', applyReportFilters);
+  }
+  
+  if (sortBy) {
+    sortBy.addEventListener('change', applyReportFilters);
+  }
+  
+  if (clearBtn) {
+    clearBtn.addEventListener('click', clearReportFilters);
+  }
+}
 
-  try {
-    let data;
-    switch (currentTab) {
-      case 'ringkasan':
-        data = await fetchSummary(month, year);
-        renderSummary(data);
-        break;
-      case 'transaksi':
-        data = await fetchTransactions(month, year);
-        renderTransactions(data);
-        break;
-      case 'kategori':
-        data = await fetchCategories(month, year);
-        renderCategories(data);
-        break;
-      case 'budget':
-        data = await fetchBudgets(month, year);
-        renderBudgets(data);
-        break;
-      case 'insight':
-        data = await fetchInsights(month, year);
-        renderInsights(data);
-        break;
+// Apply report filters
+function applyReportFilters() {
+  const searchTerm = (document.getElementById('reportSearchInput')?.value || '').toLowerCase();
+  const typeFilter = document.getElementById('reportTypeFilter')?.value || '';
+  const categoryFilter = document.getElementById('reportCategoryFilter')?.value || '';
+  const sortBy = document.getElementById('reportSortBy')?.value || 'date-desc';
+  
+  // Filter transactions
+  let filtered = allTransactions.filter(t => {
+    // Search filter
+    const matchSearch = !searchTerm || 
+      (t.description && t.description.toLowerCase().includes(searchTerm)) ||
+      (t.category_name && t.category_name.toLowerCase().includes(searchTerm));
+    
+    // Type filter
+    const matchType = !typeFilter || t.type === typeFilter;
+    
+    // Category filter
+    const matchCategory = !categoryFilter || t.category_id == categoryFilter;
+    
+    return matchSearch && matchType && matchCategory;
+  });
+  
+  // Sort transactions
+  filtered.sort((a, b) => {
+    switch (sortBy) {
+      case 'date-desc':
+        return new Date(b.transaction_date) - new Date(a.transaction_date);
+      case 'date-asc':
+        return new Date(a.transaction_date) - new Date(b.transaction_date);
+      case 'amount-desc':
+        return parseFloat(b.amount) - parseFloat(a.amount);
+      case 'amount-asc':
+        return parseFloat(a.amount) - parseFloat(b.amount);
+      default:
+        return 0;
     }
+  });
+  
+  // Render filtered results
+  renderReportTransactions(filtered);
+}
 
-    reportCache[cacheKey] = data;
-  } catch (err) {
-    showAlert(err.message, 'danger');
-  } finally {
-    hideLoading(currentTab);
+// Clear report filters
+function clearReportFilters() {
+  document.getElementById('reportSearchInput').value = '';
+  document.getElementById('reportTypeFilter').value = '';
+  document.getElementById('reportCategoryFilter').value = '';
+  document.getElementById('reportSortBy').value = 'date-desc';
+  
+  applyReportFilters();
+  showToast('Filter direset', 'success');
+}
+
+// Render report transactions
+function renderReportTransactions(transactions) {
+  const tbody = document.getElementById('transactionBody');
+  const empty = document.getElementById('emptyTransactions');
+  const countInfo = document.getElementById('transactionCount');
+  
+  if (transactions.length === 0) {
+    tbody.innerHTML = '';
+    empty.classList.remove('hidden');
+    if (countInfo) countInfo.textContent = '0 transaksi';
+  } else {
+    empty.classList.add('hidden');
+    
+    if (countInfo) {
+      const total = transactions.reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      countInfo.textContent = `${transactions.length} transaksi | Total: ${formatCurrency(total)}`;
+    }
+    
+    tbody.innerHTML = transactions.map(t => `
+      <tr>
+        <td>${formatDateShort(t.transaction_date)}</td>
+        <td>${t.description || '-'}</td>
+        <td>${t.category_icon || '📌'} ${t.category_name || 'Tanpa Kategori'}</td>
+        <td><span class="badge badge-${t.type}">${t.type === 'income' ? '💚 Pendapatan' : '❤️ Pengeluaran'}</span></td>
+        <td class="text-right ${t.type === 'income' ? 'text-success' : 'text-danger'}">
+          ${t.type === 'income' ? '+' : '-'} ${formatCurrencySimple(t.amount)}
+        </td>
+      </tr>
+    `).join('');
   }
-};
+}
 
-/* =========================
-   FETCHERS
-   ========================= */
-const fetchSummary = async (m, y) =>
-  (await apiCall(`/reports/summary?month=${m}&year=${y}`)).data;
-
-const fetchTransactions = async (m, y) => {
-  const type = document.getElementById('transactionFilter')?.value;
-  const url = `/reports/transactions?month=${m}&year=${y}${type ? `&type=${type}` : ''}`;
-  return (await apiCall(url)).data;
-};
-
-const fetchCategories = async (m, y) =>
-  (await apiCall(`/reports/categories?month=${m}&year=${y}`)).data;
-
-const fetchBudgets = async (m, y) =>
-  (await apiCall(`/reports/budget?month=${m}&year=${y}`)).data;
-
-const fetchInsights = async (m, y) =>
-  (await apiCall(`/reports/insights?month=${m}&year=${y}`)).data?.insights || [];
-
-/* =========================
-   RENDERERS
-   ========================= */
-const renderSummary = (d) => {
-  summaryCards.innerHTML = `
-    ${summaryCard('Total Pendapatan', formatCurrency(d.total_income), 'income')}
-    ${summaryCard('Total Pengeluaran', formatCurrency(d.total_expense), 'expense')}
-    ${summaryCard('Saldo Bersih', formatCurrency(d.net_balance))}
-    ${summaryCard('Total Transaksi', d.transaction_count)}
-  `;
-
-  summaryTable.innerHTML = `
-    ${summaryRow('Total Pendapatan', d.total_income, 'income')}
-    ${summaryRow('Total Pengeluaran', d.total_expense, 'expense')}
-    ${summaryRow('Saldo Bersih', d.net_balance, 'bold')}
-    ${summaryRow(
-      'Rata-rata Pengeluaran',
-      d.expense_count ? d.total_expense / d.expense_count : 0
-    )}
-  `;
-};
-
-const renderTransactions = (list) => {
-  if (!list.length) {
-    transactionTable.innerHTML = emptyRow(5, 'Tidak ada transaksi');
-    return;
-  }
-
-  transactionTable.innerHTML = list.map(tx => `
-    <tr>
-      <td>${formatDate(tx.transaction_date)}</td>
-      <td>${tx.category_name}</td>
-      <td>${tx.description || '—'}</td>
-      <td class="${tx.type}">
-        ${tx.type === 'income' ? '+' : '-'} ${formatCurrency(tx.amount)}
-      </td>
-      <td><span class="badge ${getBadgeClassByType(tx.type)}">
-        ${tx.type === 'income' ? 'Pendapatan' : 'Pengeluaran'}
-      </span></td>
-    </tr>
-  `).join('');
-};
-
-const renderCategories = (list) => {
-  if (!list.length) {
-    categoryTable.innerHTML = emptyRow(4, 'Tidak ada data kategori');
-    return;
-  }
-
-  categoryTable.innerHTML = list.map(c => `
-    <tr>
-      <td><strong>${c.category_name}</strong></td>
-      <td><span class="badge ${getBadgeClassByType(c.type)}">
-        ${c.type === 'income' ? 'Pendapatan' : 'Pengeluaran'}
-      </span></td>
-      <td class="text-right">${c.transaction_count}</td>
-      <td class="${c.type}">${formatCurrency(c.total_amount)}</td>
-    </tr>
-  `).join('');
-};
-
-const renderBudgets = (data) => {
-  budgetSummary.innerHTML = `
-    ${summaryCard('Total Budget', data.budgets.length)}
-    ${summaryCard('Terlampaui', data.summary.exceeded_count, 'expense')}
-    ${summaryCard('Peringatan', data.summary.warning_count)}
-    ${summaryCard('OK', data.summary.ok_count)}
-  `;
-
-  if (!data.budgets.length) {
-    budgetList.innerHTML = emptyText('Belum ada budget');
-    return;
-  }
-
-  budgetList.innerHTML = data.budgets.map(renderBudgetItem).join('');
-};
-
-const renderInsights = (list) => {
-  if (!list.length) {
-    insightCards.innerHTML = emptyText('Belum ada insight');
-    return;
-  }
-
-  insightCards.innerHTML = list.map(i => `
-    <div class="insight-card">
-      <div class="insight-type">${i.type.replace(/_/g, ' ').toUpperCase()}</div>
-      <div class="insight-message">${i.message}</div>
+// Show export menu
+function showExportMenu() {
+  showModal('📥 Export Data', `
+    <p style="margin-bottom: 1rem; color: var(--text-secondary);">Pilih format export:</p>
+    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+      <button onclick="exportCSV()" class="btn btn-success btn-block">
+        📊 Export ke CSV (Excel)
+      </button>
+      <button onclick="exportExcel()" class="btn btn-primary btn-block">
+        📄 Export ke Excel (.xls)
+      </button>
+      <button onclick="exportJSON()" class="btn btn-light btn-block">
+        💾 Export ke JSON
+      </button>
     </div>
-  `).join('');
-};
+  `, [
+    { text: 'Batal', class: 'btn-light', action: () => {} }
+  ]);
+}
 
-/* =========================
-   UI HELPERS
-   ========================= */
-const summaryCard = (label, value, cls = '') => `
-  <div class="summary-item ${cls}">
-    <div class="summary-label">${label}</div>
-    <div class="summary-value">${value}</div>
-  </div>
-`;
+// Export to CSV
+function exportCSV() {
+  hideModal();
+  const url = `/api/export/csv?month=${currentMonth}&year=${currentYear}`;
+  window.open(url, '_blank');
+  showToast('Mengexport data ke CSV...', 'success');
+}
 
-const summaryRow = (label, value, cls = '') => `
-  <tr>
-    <td>${label}</td>
-    <td class="${cls}">${formatCurrency(value)}</td>
-  </tr>
-`;
+// Export to Excel
+function exportExcel() {
+  hideModal();
+  const url = `/api/export/excel?month=${currentMonth}&year=${currentYear}`;
+  window.open(url, '_blank');
+  showToast('Mengexport data ke Excel...', 'success');
+}
 
-const emptyRow = (col, text) =>
-  `<tr><td colspan="${col}" class="text-center">${text}</td></tr>`;
+// Export to JSON
+async function exportJSON() {
+  try {
+    hideModal();
+    showToast('Mengexport data...', 'info');
+    const response = await get('/backup');
+    
+    const dataStr = JSON.stringify(response.data, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `uangin-backup-${currentYear}-${String(currentMonth).padStart(2, '0')}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    
+    showToast('Data berhasil diexport', 'success');
+  } catch (error) {
+    showToast(error.message || 'Gagal mengexport data', 'danger');
+  }
+}
 
-const emptyText = (text) =>
-  `<p class="text-center text-muted">${text}</p>`;
+async function loadAllData() {
+  await Promise.all([
+    loadSummary(),
+    loadTransactions(),
+    loadCategories(),
+    loadBudget(),
+    loadInsights()
+  ]);
+}
 
-const renderCachedData = (tab, data) => {
-  ({
-    ringkasan: () => renderSummary(data),
-    transaksi: () => renderTransactions(data),
-    kategori: () => renderCategories(data),
-    budget: () => renderBudgets(data),
-    insight: () => renderInsights(data)
-  })[tab]();
-};
+async function loadSummary() {
+  try {
+    const response = await get(`/reports/summary?month=${currentMonth}&year=${currentYear}`);
+    const data = response.data;
+    
+    document.getElementById('totalIncome').textContent = formatCurrency(data.total_income);
+    document.getElementById('totalExpense').textContent = formatCurrency(data.total_expense);
+    document.getElementById('netBalance').textContent = formatCurrency(data.balance);
+    
+    // Top expenses
+    const container = document.getElementById('topExpenses');
+    if (data.top_expense_categories.length === 0) {
+      container.innerHTML = '<p class="text-muted text-center">Belum ada pengeluaran</p>';
+    } else {
+      container.innerHTML = data.top_expense_categories.map(cat => `
+        <div class="top-expense-item">
+          <div class="top-expense-info">
+            <span class="top-expense-icon">${cat.icon}</span>
+            <div>
+              <div>${cat.name}</div>
+              <div class="text-muted" style="font-size: 0.875rem;">${cat.transaction_count} transaksi</div>
+            </div>
+          </div>
+          <div class="top-expense-amount">${formatCurrency(cat.total_amount)}</div>
+        </div>
+      `).join('');
+    }
+  } catch (error) {
+    console.error('Load summary error:', error);
+  }
+}
+
+async function loadTransactions() {
+  try {
+    const response = await get(`/reports/transactions?month=${currentMonth}&year=${currentYear}`);
+    allTransactions = response.data;
+    
+    // Load categories for filter
+    await loadReportCategories();
+    
+    // Render with current filters
+    applyReportFilters();
+  } catch (error) {
+    console.error('Load transactions error:', error);
+  }
+}
+
+// Load categories for filter dropdown
+async function loadReportCategories() {
+  try {
+    const response = await get('/categories');
+    categories = response.data;
+    
+    const filter = document.getElementById('reportCategoryFilter');
+    filter.innerHTML = '<option value="">Semua Kategori</option>';
+    
+    categories.forEach(cat => {
+      const option = document.createElement('option');
+      option.value = cat.id;
+      option.textContent = `${cat.icon || '📌'} ${cat.name}`;
+      filter.appendChild(option);
+    });
+  } catch (error) {
+    console.error('Load categories error:', error);
+  }
+}
+
+async function loadCategories() {
+  try {
+    const response = await get(`/reports/categories?month=${currentMonth}&year=${currentYear}`);
+    const categories = response.data;
+    
+    const container = document.getElementById('categoryBreakdown');
+    
+    if (categories.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="empty-icon">📂</div><p>Belum ada kategori dengan transaksi</p></div>';
+    } else {
+      container.innerHTML = categories.map(cat => `
+        <div class="category-card" style="--category-color: ${cat.color}">
+          <div class="category-header">
+            <div class="category-info">
+              <span class="category-icon">${cat.icon}</span>
+              <span class="category-name">${cat.name}</span>
+              <span class="badge badge-${cat.type}">${cat.type === 'income' ? 'Pendapatan' : 'Pengeluaran'}</span>
+            </div>
+            <div class="category-amount">${formatCurrency(cat.total_amount)}</div>
+          </div>
+          <div class="category-stats">
+            <span>📊 ${cat.transaction_count} transaksi</span>
+            <span>💵 Rata-rata: ${formatCurrency(cat.average_amount)}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+  } catch (error) {
+    console.error('Load categories error:', error);
+  }
+}
+
+async function loadBudget() {
+  try {
+    const response = await get(`/reports/budget?month=${currentMonth}&year=${currentYear}`);
+    const budgets = response.data;
+    
+    const container = document.getElementById('budgetStatus');
+    
+    if (budgets.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="empty-icon">💰</div><p>Belum ada budget yang ditetapkan</p></div>';
+    } else {
+      container.innerHTML = budgets.map(b => {
+        const pct = parseFloat(b.percentage);
+        let barClass = 'safe';
+        if (pct > 100) barClass = 'danger';
+        else if (pct > 80) barClass = 'warning';
+        
+        return `
+          <div class="budget-item">
+            <div class="budget-header">
+              <div class="budget-info">
+                <span class="budget-icon">${b.category_icon}</span>
+                <span class="budget-name">${b.category_name}</span>
+              </div>
+              <div class="budget-amounts">
+                <span class="budget-spent">Terpakai: ${formatCurrency(b.spent_amount)}</span>
+                <span class="budget-limit">Budget: ${formatCurrency(b.limit_amount)}</span>
+                <span class="budget-remaining">Sisa: ${formatCurrency(b.remaining)}</span>
+              </div>
+            </div>
+            <div class="budget-progress">
+              <div class="budget-progress-bar ${barClass}" style="width: ${Math.min(pct, 100)}%"></div>
+            </div>
+            <div class="budget-percentage ${pct > 100 ? 'text-danger' : pct > 80 ? 'text-warning' : 'text-success'}">
+              ${pct.toFixed(1)}%
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  } catch (error) {
+    console.error('Load budget error:', error);
+  }
+}
+
+async function loadInsights() {
+  try {
+    const response = await get(`/reports/insights?month=${currentMonth}&year=${currentYear}`);
+    const { insights } = response.data;
+    
+    const container = document.getElementById('insightsList');
+    
+    if (insights.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="empty-icon">💡</div><p>Belum ada insight bulan ini</p></div>';
+    } else {
+      container.innerHTML = insights.map(insight => `
+        <div class="insight-card" style="--insight-color: ${
+          insight.type === 'success' ? 'var(--success)' :
+          insight.type === 'danger' ? 'var(--danger)' :
+          insight.type === 'warning' ? 'var(--warning)' : 'var(--info)'
+        }">
+          <span class="insight-icon">${insight.icon}</span>
+          <div class="insight-message">
+            <p>${insight.message}</p>
+          </div>
+        </div>
+      `).join('');
+    }
+  } catch (error) {
+    console.error('Load insights error:', error);
+  }
+}
+
+function updateThemeIcon() {
+  const theme = document.documentElement.getAttribute('data-theme');
+  document.getElementById('themeToggle').textContent = theme === 'dark' ? '☀️' : '🌙';
+}

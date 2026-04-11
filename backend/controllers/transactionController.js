@@ -1,581 +1,384 @@
-// Transaction Controller
-const db = require('../config/database');
-const { sendSuccess, sendError } = require('../utils/response');
-const { validateAmount, validateDate, validateTime } = require('../utils/validation');
-const { adjustBudgetSpent } = require('./budgetController');
+const { pool } = require('../config/database');
+const { success, error, badRequest, notFound, validationError } = require('../utils/response');
+const { validateAmount, validateDate, validateTime, validateTransactionType, sanitizeString } = require('../utils/validation');
 
-// Helper: Calculate balance after transaction
-const calculateBalanceAfter = async (userId, upToId) => {
-  const connection = await db.getConnection();
-
-  try {
-    const [result] = await connection.execute(
-      `SELECT
-        COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END), 0) as balance
-       FROM transactions
-       WHERE user_id = ? AND id <= ?
-       ORDER BY transaction_date, transaction_time, id`,
-      [userId, upToId]
-    );
-
-    return result[0]?.balance || 0;
-  } finally {
-    connection.release();
-  }
-};
-
-// Get transactions (by month & year)
-exports.getTransactions = async (req, res) => {
+// Get transactions for a specific month/year
+async function getTransactions(req, res) {
   try {
     const userId = req.user.userId;
     const { month, year } = req.query;
-
-    if (!month || !year) {
-      return sendError(res, 'Month and year are required', 400);
+    
+    // Default to current month/year
+    const now = new Date();
+    const targetMonth = month ? parseInt(month) : now.getMonth() + 1;
+    const targetYear = year ? parseInt(year) : now.getFullYear();
+    
+    // Validate
+    if (targetMonth < 1 || targetMonth > 12) {
+      return badRequest(res, 'Bulan harus antara 1-12');
     }
-
-    const connection = await db.getConnection();
-
-    try {
-      const [transactions] = await connection.execute(
-        `SELECT 
-          t.id, 
-          t.amount, 
-          t.type, 
-          t.description, 
-          DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as transaction_date,
-          t.transaction_time,
-          t.balance_after,
-          t.category_id,
-          c.name as category_name,
-          t.is_recurring,
-          t.attachment_path,
-          t.created_at
-         FROM transactions t
-         JOIN categories c ON t.category_id = c.id
-         WHERE t.user_id = ? 
-         AND YEAR(t.transaction_date) = ? 
-         AND MONTH(t.transaction_date) = ?
-         ORDER BY t.transaction_date DESC, t.transaction_time DESC`,
-        [userId, parseInt(year), parseInt(month)]
-      );
-
-      // Get summary
-      const [summary] = await connection.execute(
-        `SELECT 
-          SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as total_income,
-          SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as total_expense
-         FROM transactions
-         WHERE user_id = ? 
-         AND YEAR(transaction_date) = ? 
-         AND MONTH(transaction_date) = ?`,
-        [userId, parseInt(year), parseInt(month)]
-      );
-
-      const summaryData = summary[0] || { total_income: 0, total_expense: 0 };
-      const net_balance = parseFloat(summaryData.total_income || 0) - parseFloat(summaryData.total_expense || 0);
-
-      sendSuccess(res, {
-        transactions,
-        summary: {
-          total_income: parseFloat(summaryData.total_income || 0),
-          total_expense: parseFloat(summaryData.total_expense || 0),
-          net_balance,
-        },
-      }, 'Transactions fetched successfully');
-
-    } finally {
-      connection.release();
-    }
-
-  } catch (error) {
-    console.error('Get transactions error:', error);
-    sendError(res, 'Failed to fetch transactions', 500);
+    
+    // Use range query instead of MONTH()/YEAR() for better index usage
+    const startDate = `${targetYear}-${String(targetMonth).padStart(2, '0')}-01`;
+    const endDate = targetMonth === 12 
+      ? `${targetYear + 1}-01-01` 
+      : `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-01`;
+    
+    // Get transactions with category info
+    const [transactions] = await pool.query(
+      `SELECT 
+        t.id,
+        t.type,
+        t.amount,
+        t.description,
+        t.transaction_date,
+        t.transaction_time,
+        t.attachment_url,
+        t.created_at,
+        c.id as category_id,
+        c.name as category_name,
+        c.icon as category_icon,
+        c.color as category_color
+      FROM transactions t
+      LEFT JOIN categories c ON t.category_id = c.id
+      WHERE t.user_id = ? 
+        AND t.transaction_date >= ?
+        AND t.transaction_date < ?
+      ORDER BY t.transaction_date DESC, t.created_at DESC`,
+      [userId, startDate, endDate]
+    );
+    
+    // Get summary
+    const [summary] = await pool.query(
+      `SELECT 
+        COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as total_income,
+        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as total_expense
+      FROM transactions
+      WHERE user_id = ? 
+        AND transaction_date >= ?
+        AND transaction_date < ?`,
+      [userId, startDate, endDate]
+    );
+    
+    return success(res, 'Data transaksi berhasil diambil', {
+      transactions,
+      summary: summary[0],
+      month: targetMonth,
+      year: targetYear
+    });
+    
+  } catch (err) {
+    console.error('Get transactions error:', err.message);
+    return error(res, 'Terjadi kesalahan saat mengambil data transaksi', 500);
   }
-};
+}
 
 // Get all transactions (for calendar view)
-exports.getAllTransactions = async (req, res) => {
+async function getAllTransactions(req, res) {
   try {
     const userId = req.user.userId;
-
-    const connection = await db.getConnection();
-
-    try {
-      const [transactions] = await connection.execute(
-        `SELECT 
-          t.id, 
-          t.amount, 
-          t.type, 
-          t.description, 
-          DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as transaction_date,
-          t.transaction_time,
-          t.balance_after,
-          t.category_id,
-          c.name as category_name,
-          t.created_at
-         FROM transactions t
-         JOIN categories c ON t.category_id = c.id
-         WHERE t.user_id = ?
-         ORDER BY t.transaction_date DESC, t.transaction_time DESC`,
-        [userId]
-      );
-
-      sendSuccess(res, transactions, 'All transactions fetched successfully');
-
-    } finally {
-      connection.release();
-    }
-
-  } catch (error) {
-    console.error('Get all transactions error:', error);
-    sendError(res, 'Failed to fetch transactions', 500);
+    
+    const [transactions] = await pool.query(
+      `SELECT 
+        t.id,
+        t.type,
+        t.amount,
+        t.description,
+        t.transaction_date,
+        t.transaction_time,
+        c.name as category_name,
+        c.icon as category_icon,
+        c.color as category_color
+      FROM transactions t
+      LEFT JOIN categories c ON t.category_id = c.id
+      WHERE t.user_id = ?
+      ORDER BY t.transaction_date DESC, t.created_at DESC
+      LIMIT 1000`,
+      [userId]
+    );
+    
+    return success(res, 'Semua transaksi berhasil diambil', transactions);
+    
+  } catch (err) {
+    console.error('Get all transactions error:', err.message);
+    return error(res, 'Terjadi kesalahan saat mengambil data', 500);
   }
-};
+}
 
 // Create transaction
-exports.createTransaction = async (req, res) => {
+async function createTransaction(req, res) {
   try {
     const userId = req.user.userId;
-    const { amount, type, description, category_id, transaction_date, transaction_time, is_recurring, attachment_path } = req.body;
-
-    // DEBUG: Log incoming request
-    console.log('=== CREATE TRANSACTION DEBUG ===');
-    console.log('User ID:', userId);
-    console.log('Request body:', JSON.stringify(req.body, null, 2));
-    console.log('Parsed values:', {
-      amount,
-      type,
-      description,
-      category_id,
-      transaction_date,
-      transaction_time,
-      is_recurring,
-      attachment_path
-    });
-    console.log('================================');
-
-    // Validation
-    if (!amount || !type || !category_id || !transaction_date || !transaction_time) {
-      console.error('VALIDATION FAILED: Missing required fields');
-      return sendError(res, 'Required fields: amount, type, category_id, transaction_date, transaction_time', 400);
-    }
-
-    if (!validateAmount(amount)) {
-      console.error('VALIDATION FAILED: Invalid amount', amount);
-      return sendError(res, 'Amount must be a positive number', 400);
-    }
-
-    if (!['income', 'expense'].includes(type)) {
-      console.error('VALIDATION FAILED: Invalid type', type);
-      return sendError(res, 'Type must be income or expense', 400);
-    }
-
-    if (!validateDate(transaction_date)) {
-      console.error('VALIDATION FAILED: Invalid date', transaction_date);
-      return sendError(res, 'Invalid date format', 400);
-    }
-
-    if (!validateTime(transaction_time)) {
-      console.error('VALIDATION FAILED: Invalid time', transaction_time);
-      return sendError(res, 'Invalid time format (HH:MM or HH:MM:SS)', 400);
-    }
-
-    const connection = await db.getConnection();
-
-    try {
+    const { type, category_id, amount, description, transaction_date, transaction_time, recurring_id, attachment_url } = req.body;
+    
+    // Validate inputs
+    const errors = [];
+    errors.push(...validateTransactionType(type));
+    errors.push(...validateAmount(amount));
+    errors.push(...validateDate(transaction_date));
+    
+    if (category_id) {
       // Verify category belongs to user
-      const [categories] = await connection.execute(
-        'SELECT id FROM categories WHERE id = ? AND user_id = ?',
+      const [categories] = await pool.query(
+        'SELECT id, type FROM categories WHERE id = ? AND user_id = ?',
         [category_id, userId]
       );
-
-      console.log('Category verification:', { category_id, userId, found: categories.length > 0 });
-
+      
       if (categories.length === 0) {
-        console.error('VALIDATION FAILED: Category not found for this user');
-        return sendError(res, 'Category not found', 404);
+        errors.push('Kategori tidak ditemukan');
+      } else if (categories[0].type !== type) {
+        errors.push('Tipe kategori tidak sesuai dengan tipe transaksi');
       }
-
-      // Insert transaction
-      console.log('Executing INSERT...');
-      const [result] = await connection.execute(
-        `INSERT INTO transactions
-         (user_id, category_id, amount, type, description, transaction_date, transaction_time, is_recurring, attachment_path)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [userId, category_id, amount, type, description || null, transaction_date, transaction_time, is_recurring ? 1 : 0, attachment_path || null]
-      );
-
-      const transactionId = result.insertId;
-      console.log('Transaction inserted with ID:', transactionId);
-
-      // Calculate and update balance_after for all subsequent transactions
-      console.log('Updating balances...');
-      await updateAllBalancesAfter(userId, transactionId);
-
-      // Update budget spent for expense transactions
-      if (type === 'expense') {
-        const [year, month] = transaction_date.split('-');
-        await adjustBudgetSpent({ userId, categoryId: category_id, year, month, delta: amount });
-      }
-
-      // Get created transaction
-      const [newTransaction] = await connection.execute(
-        `SELECT
-          t.id,
-          t.amount,
-          t.type,
-          t.description,
-          DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as transaction_date,
-          t.transaction_time,
-          t.balance_after,
-          t.category_id,
-          c.name as category_name,
-          t.is_recurring,
-          t.created_at
-         FROM transactions t
-         JOIN categories c ON t.category_id = c.id
-         WHERE t.id = ?`,
-        [transactionId]
-      );
-
-      console.log('Created transaction:', newTransaction[0]);
-
-      // Log undo
-      await connection.execute(
-        `INSERT INTO undo_log (user_id, transaction_id, action, new_data)
-         VALUES (?, ?, 'CREATE', ?)`,
-        [userId, transactionId, JSON.stringify(newTransaction[0])]
-      );
-
-      console.log('Transaction created successfully');
-      sendSuccess(res, newTransaction[0], 'Transaction created successfully', 201);
-
-    } finally {
-      connection.release();
     }
-
-  } catch (error) {
-    console.error('=== CREATE TRANSACTION ERROR ===');
-    console.error('Error:', error);
-    console.error('Error code:', error.code);
-    console.error('Error errno:', error.errno);
-    console.error('Error sqlState:', error.sqlState);
-    console.error('================================');
-    sendError(res, 'Failed to create transaction', 500);
+    
+    if (errors.length > 0) {
+      return validationError(res, errors);
+    }
+    
+    // Sanitize description
+    const cleanDescription = description ? sanitizeString(description.trim()) : null;
+    const cleanTime = transaction_time || null;
+    
+    // Insert transaction
+    const [result] = await pool.query(
+      `INSERT INTO transactions 
+        (user_id, category_id, type, amount, description, transaction_date, transaction_time, recurring_id, attachment_url)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userId, category_id || null, type, parseFloat(amount), cleanDescription, transaction_date, cleanTime, recurring_id || null, attachment_url || null]
+    );
+    
+    // Get the created transaction
+    const [transactions] = await pool.query(
+      `SELECT 
+        t.id,
+        t.type,
+        t.amount,
+        t.description,
+        t.transaction_date,
+        t.transaction_time,
+        t.attachment_url,
+        c.name as category_name,
+        c.icon as category_icon,
+        c.color as category_color
+      FROM transactions t
+      LEFT JOIN categories c ON t.category_id = c.id
+      WHERE t.id = ?`,
+      [result.insertId]
+    );
+    
+    const transactionType = type === 'income' ? 'Pendapatan' : 'Pengeluaran';
+    
+    return success(res, `${transactionType} sebesar Rp ${parseFloat(amount).toLocaleString('id-ID')} berhasil disimpan!`, transactions[0], 201);
+    
+  } catch (err) {
+    console.error('Create transaction error:', err.message);
+    return error(res, 'Terjadi kesalahan saat menyimpan transaksi', 500);
   }
-};
+}
 
 // Update transaction
-exports.updateTransaction = async (req, res) => {
+async function updateTransaction(req, res) {
   try {
     const userId = req.user.userId;
     const transactionId = req.params.id;
-    const { amount, type, description, category_id, transaction_date, transaction_time, is_recurring, attachment_path } = req.body;
-
-    const connection = await db.getConnection();
-
-    try {
-      // Get old transaction
-      const [oldTransactions] = await connection.execute(
-        'SELECT * FROM transactions WHERE id = ? AND user_id = ?',
-        [transactionId, userId]
-      );
-
-      if (oldTransactions.length === 0) {
-        return sendError(res, 'Transaction not found', 404);
+    const { type, category_id, amount, description, transaction_date, transaction_time, attachment_url } = req.body;
+    
+    // Check if transaction exists and belongs to user
+    const [existing] = await pool.query(
+      'SELECT * FROM transactions WHERE id = ? AND user_id = ?',
+      [transactionId, userId]
+    );
+    
+    if (existing.length === 0) {
+      return notFound(res, 'Transaksi tidak ditemukan');
+    }
+    
+    const oldTransaction = existing[0];
+    
+    // Build update query
+    const updates = [];
+    const values = [];
+    
+    if (type) {
+      if (!['income', 'expense'].includes(type)) {
+        return badRequest(res, 'Tipe transaksi harus "income" atau "expense"');
       }
-
-      const oldData = oldTransactions[0];
-
-      // Validate category if provided
-      if (category_id) {
-        const [categories] = await connection.execute(
-          'SELECT id FROM categories WHERE id = ? AND user_id = ?',
+      updates.push('type = ?');
+      values.push(type);
+    }
+    
+    if (amount !== undefined) {
+      const errors = validateAmount(amount);
+      if (errors.length > 0) {
+        return validationError(res, errors);
+      }
+      updates.push('amount = ?');
+      values.push(parseFloat(amount));
+    }
+    
+    if (category_id !== undefined) {
+      if (category_id === null) {
+        updates.push('category_id = NULL');
+      } else {
+        const [categories] = await pool.query(
+          'SELECT id, type FROM categories WHERE id = ? AND user_id = ?',
           [category_id, userId]
         );
-
+        
         if (categories.length === 0) {
-          return sendError(res, 'Category not found', 404);
+          return badRequest(res, 'Kategori tidak ditemukan');
         }
+        
+        const finalType = type || oldTransaction.type;
+        if (categories[0].type !== finalType) {
+          return badRequest(res, 'Tipe kategori tidak sesuai');
+        }
+        
+        updates.push('category_id = ?');
+        values.push(category_id);
       }
-
-      // Update transaction
-      const updateAmount = amount !== undefined ? amount : oldData.amount;
-      const updateType = type !== undefined ? type : oldData.type;
-      const updateDescription = description !== undefined ? description : oldData.description;
-      const updateCategoryId = category_id !== undefined ? category_id : oldData.category_id;
-      const updateDate = transaction_date !== undefined ? transaction_date : oldData.transaction_date;
-      const updateTime = transaction_time !== undefined ? transaction_time : oldData.transaction_time;
-
-      await connection.execute(
-        `UPDATE transactions 
-         SET amount = ?, type = ?, description = ?, category_id = ?, transaction_date = ?, transaction_time = ?, is_recurring = ?, attachment_path = ?
-         WHERE id = ?`,
-        [updateAmount, updateType, updateDescription, updateCategoryId, updateDate, updateTime, is_recurring ? 1 : 0, attachment_path || null, transactionId]
-      );
-
-      // Recalculate balances
-      await updateAllBalancesAfter(userId, transactionId);
-
-      // Update budget spent (handle changes in amount/type/category/date)
-      const oldExpense = oldData.type === 'expense' ? parseFloat(oldData.amount) : 0;
-      const newExpense = updateType === 'expense' ? parseFloat(updateAmount) : 0;
-
-      if (oldExpense !== 0) {
-        const [oldYear, oldMonth] = oldData.transaction_date.split('-');
-        await adjustBudgetSpent({ userId, categoryId: oldData.category_id, year: oldYear, month: oldMonth, delta: -oldExpense });
-      }
-
-      if (newExpense !== 0) {
-        const [newYear, newMonth] = updateDate.split('-');
-        await adjustBudgetSpent({ userId, categoryId: updateCategoryId, year: newYear, month: newMonth, delta: newExpense });
-      }
-
-      // Get updated transaction
-      const [updatedTransaction] = await connection.execute(
-        `SELECT 
-          t.id, 
-          t.amount, 
-          t.type, 
-          t.description, 
-          t.transaction_date,
-          t.transaction_time,
-          t.balance_after,
-          t.category_id,
-          c.name as category_name,
-          t.is_recurring,
-          t.created_at
-         FROM transactions t
-         JOIN categories c ON t.category_id = c.id
-         WHERE t.id = ?`,
-        [transactionId]
-      );
-
-      // Log undo
-      await connection.execute(
-        `INSERT INTO undo_log (user_id, transaction_id, action, old_data, new_data)
-         VALUES (?, ?, 'UPDATE', ?, ?)`,
-        [userId, transactionId, JSON.stringify(oldData), JSON.stringify(updatedTransaction[0])]
-      );
-
-      sendSuccess(res, updatedTransaction[0], 'Transaction updated successfully');
-
-    } finally {
-      connection.release();
     }
-
-  } catch (error) {
-    console.error('Update transaction error:', error);
-    sendError(res, 'Failed to update transaction', 500);
+    
+    if (description !== undefined) {
+      updates.push('description = ?');
+      values.push(description ? sanitizeString(description.trim()) : null);
+    }
+    
+    if (transaction_date !== undefined) {
+      const errors = validateDate(transaction_date);
+      if (errors.length > 0) {
+        return validationError(res, errors);
+      }
+      updates.push('transaction_date = ?');
+      values.push(transaction_date);
+    }
+    
+    if (transaction_time !== undefined) {
+      updates.push('transaction_time = ?');
+      values.push(transaction_time || null);
+    }
+    
+    if (attachment_url !== undefined) {
+      updates.push('attachment_url = ?');
+      values.push(attachment_url || null);
+    }
+    
+    if (updates.length === 0) {
+      return badRequest(res, 'Tidak ada data yang diubah');
+    }
+    
+    values.push(transactionId);
+    
+    await pool.query(
+      `UPDATE transactions SET ${updates.join(', ')} WHERE id = ?`,
+      values
+    );
+    
+    // Get updated transaction
+    const [transactions] = await pool.query(
+      `SELECT 
+        t.id,
+        t.type,
+        t.amount,
+        t.description,
+        t.transaction_date,
+        t.transaction_time,
+        t.attachment_url,
+        c.name as category_name,
+        c.icon as category_icon,
+        c.color as category_color
+      FROM transactions t
+      LEFT JOIN categories c ON t.category_id = c.id
+      WHERE t.id = ? AND t.user_id = ?`,
+      [transactionId, userId]
+    );
+    
+    return success(res, 'Transaksi berhasil diperbarui', transactions[0]);
+    
+  } catch (err) {
+    console.error('Update transaction error:', err.message);
+    return error(res, 'Terjadi kesalahan saat memperbarui transaksi', 500);
   }
-};
+}
 
 // Delete transaction
-exports.deleteTransaction = async (req, res) => {
+async function deleteTransaction(req, res) {
   try {
     const userId = req.user.userId;
     const transactionId = req.params.id;
-
-    const connection = await db.getConnection();
-
-    try {
-      // Get transaction
-      const [transactions] = await connection.execute(
-        'SELECT * FROM transactions WHERE id = ? AND user_id = ?',
-        [transactionId, userId]
-      );
-
-      if (transactions.length === 0) {
-        return sendError(res, 'Transaction not found', 404);
-      }
-
-      const oldData = transactions[0];
-
-      // Update budget spent if this was an expense
-      if (oldData.type === 'expense') {
-        const [year, month] = oldData.transaction_date.split('-');
-        await adjustBudgetSpent({ userId, categoryId: oldData.category_id, year, month, delta: -parseFloat(oldData.amount) });
-      }
-
-      // Delete transaction
-      await connection.execute(
-        'DELETE FROM transactions WHERE id = ?',
-        [transactionId]
-      );
-
-      // Recalculate balances
-      const [remainingTransactions] = await connection.execute(
-        `SELECT id FROM transactions WHERE user_id = ? ORDER BY id DESC LIMIT 1`,
-        [userId]
-      );
-
-      if (remainingTransactions.length > 0) {
-        await updateAllBalancesAfter(userId, remainingTransactions[0].id);
-      }
-
-      // Log undo
-      await connection.execute(
-        `INSERT INTO undo_log (user_id, transaction_id, action, old_data)
-         VALUES (?, ?, 'DELETE', ?)`,
-        [userId, transactionId, JSON.stringify(oldData)]
-      );
-
-      sendSuccess(res, { transactionId }, 'Transaction deleted successfully');
-
-    } finally {
-      connection.release();
+    
+    // Check if transaction exists
+    const [existing] = await pool.query(
+      'SELECT * FROM transactions WHERE id = ? AND user_id = ?',
+      [transactionId, userId]
+    );
+    
+    if (existing.length === 0) {
+      return notFound(res, 'Transaksi tidak ditemukan');
     }
-
-  } catch (error) {
-    console.error('Delete transaction error:', error);
-    sendError(res, 'Failed to delete transaction', 500);
+    
+    // Log for undo
+    await pool.query(
+      `INSERT INTO undo_log (user_id, transaction_id, action, old_data)
+      VALUES (?, ?, 'DELETE', ?)`,
+      [userId, transactionId, JSON.stringify(existing[0])]
+    );
+    
+    // Delete transaction
+    await pool.query('DELETE FROM transactions WHERE id = ?', [transactionId]);
+    
+    return success(res, 'Transaksi berhasil dihapus');
+    
+  } catch (err) {
+    console.error('Delete transaction error:', err.message);
+    return error(res, 'Terjadi kesalahan saat menghapus transaksi', 500);
   }
-};
+}
 
 // Undo last transaction
-exports.undoLastTransaction = async (req, res) => {
+async function undoTransaction(req, res) {
   try {
     const userId = req.user.userId;
-
-    const connection = await db.getConnection();
-
-    try {
-      // Get last undo log entry
-      const [logs] = await connection.execute(
-        `SELECT * FROM undo_log WHERE user_id = ? ORDER BY id DESC LIMIT 1`,
-        [userId]
-      );
-
-      if (logs.length === 0) {
-        return sendError(res, 'No transaction to undo', 400);
-      }
-
-      const log = logs[0];
-
-      if (log.action === 'CREATE') {
-        // Delete created transaction and adjust budget (if expense)
-        const createdData = JSON.parse(log.new_data);
-        await connection.execute(
-          'DELETE FROM transactions WHERE id = ?',
-          [log.transaction_id]
-        );
-
-        if (createdData.type === 'expense') {
-          const [year, month] = createdData.transaction_date.split('-');
-          await adjustBudgetSpent({ userId, categoryId: createdData.category_id, year, month, delta: -parseFloat(createdData.amount) });
-        }
-
-      } else if (log.action === 'UPDATE') {
-        // Restore old data and adjust budget spent
-        const oldData = JSON.parse(log.old_data);
-        const newData = JSON.parse(log.new_data);
-
-        await connection.execute(
-          `UPDATE transactions 
-           SET amount = ?, type = ?, description = ?, category_id = ?, transaction_date = ?, transaction_time = ?
-           WHERE id = ?`,
-          [oldData.amount, oldData.type, oldData.description, oldData.category_id, oldData.transaction_date, oldData.transaction_time, log.transaction_id]
-        );
-
-        // Reverse budget change: remove effect of newData and reapply oldData (if expense)
-        if (newData.type === 'expense') {
-          const [newYear, newMonth] = newData.transaction_date.split('-');
-          await adjustBudgetSpent({ userId, categoryId: newData.category_id, year: newYear, month: newMonth, delta: -parseFloat(newData.amount) });
-        }
-        if (oldData.type === 'expense') {
-          const [oldYear, oldMonth] = oldData.transaction_date.split('-');
-          await adjustBudgetSpent({ userId, categoryId: oldData.category_id, year: oldYear, month: oldMonth, delta: parseFloat(oldData.amount) });
-        }
-
-      } else if (log.action === 'DELETE') {
-        // Restore deleted transaction and update budget for expense
-        const oldData = JSON.parse(log.old_data);
-        await connection.execute(
-          `INSERT INTO transactions 
-           (user_id, category_id, amount, type, description, transaction_date, transaction_time)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [oldData.user_id, oldData.category_id, oldData.amount, oldData.type, oldData.description, oldData.transaction_date, oldData.transaction_time]
-        );
-
-        if (oldData.type === 'expense') {
-          const [year, month] = oldData.transaction_date.split('-');
-          await adjustBudgetSpent({ userId, categoryId: oldData.category_id, year, month, delta: parseFloat(oldData.amount) });
-        }
-      }
-
-      // Recalculate balances
-      const [lastTransaction] = await connection.execute(
-        `SELECT id FROM transactions WHERE user_id = ? ORDER BY id DESC LIMIT 1`,
-        [userId]
-      );
-
-      if (lastTransaction.length > 0) {
-        await updateAllBalancesAfter(userId, lastTransaction[0].id);
-      }
-
-      // Delete undo log entry
-      await connection.execute(
-        'DELETE FROM undo_log WHERE id = ?',
-        [log.id]
-      );
-
-      sendSuccess(res, { message: 'Transaction undone successfully' }, 'Undo successful');
-
-    } finally {
-      connection.release();
-    }
-
-  } catch (error) {
-    console.error('Undo transaction error:', error);
-    sendError(res, 'Failed to undo transaction', 500);
-  }
-};
-
-// Helper: Update all balances after transaction
-const updateAllBalancesAfter = async (userId, fromTransactionId) => {
-  const connection = await db.getConnection();
-
-  try {
-    // Get all transactions from the specified one, ordered properly
-    const [transactions] = await connection.execute(
-      `SELECT id, amount, type FROM transactions
-       WHERE user_id = ? AND id >= ?
-       ORDER BY transaction_date ASC, transaction_time ASC, id ASC`,
-      [userId, fromTransactionId]
+    
+    // Get last transaction
+    const [transactions] = await pool.query(
+      `SELECT id FROM transactions 
+       WHERE user_id = ? 
+       ORDER BY created_at DESC 
+       LIMIT 1`,
+      [userId]
     );
-
+    
     if (transactions.length === 0) {
-      console.log('No transactions to update balances for');
-      return;
+      return badRequest(res, 'Tidak ada transaksi untuk di-undo');
     }
-
-    // Get initial balance (before fromTransactionId)
-    const [initialBalance] = await connection.execute(
-      `SELECT
-        COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END), 0) as balance
-       FROM transactions
-       WHERE user_id = ? AND id < ?`,
-      [userId, fromTransactionId]
+    
+    const lastTransactionId = transactions[0].id;
+    
+    // Get transaction data for response
+    const [details] = await pool.query(
+      `SELECT type, amount FROM transactions WHERE id = ?`,
+      [lastTransactionId]
     );
-
-    let runningBalance = parseFloat(initialBalance[0]?.balance || 0);
-
-    console.log(`Updating balances for ${transactions.length} transactions, starting balance: ${runningBalance}`);
-
-    // Update balance for each transaction
-    for (const tx of transactions) {
-      runningBalance += tx.type === 'income' ? parseFloat(tx.amount) : -parseFloat(tx.amount);
-
-      await connection.execute(
-        'UPDATE transactions SET balance_after = ? WHERE id = ?',
-        [runningBalance, tx.id]
-      );
-    }
-
-    console.log(`Final balance after update: ${runningBalance}`);
-
-  } finally {
-    connection.release();
+    
+    // Delete transaction
+    await pool.query('DELETE FROM transactions WHERE id = ?', [lastTransactionId]);
+    
+    const transactionType = details[0].type === 'income' ? 'Pendapatan' : 'Pengeluaran';
+    
+    return success(res, `${transactionType} sebesar Rp ${parseFloat(details[0].amount).toLocaleString('id-ID')} berhasil di-undo`);
+    
+  } catch (err) {
+    console.error('Undo transaction error:', err.message);
+    return error(res, 'Terjadi kesalahan saat meng-undo transaksi', 500);
   }
+}
+
+module.exports = {
+  getTransactions,
+  getAllTransactions,
+  createTransaction,
+  updateTransaction,
+  deleteTransaction,
+  undoTransaction
 };

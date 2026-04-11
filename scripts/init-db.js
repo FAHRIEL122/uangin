@@ -1,72 +1,57 @@
+/**
+ * Database Initialization Script
+ * Creates database and schema from SQL file
+ */
+
 const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config();
 
 async function initializeDatabase() {
-  // Create connection to MySQL server (without database)
-  let connection = await mysql.createConnection({
+  console.log('🚀 Initializing UANGIN database...\n');
+  
+  // Create connection without database
+  const connection = await mysql.createConnection({
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
-    port: process.env.DB_PORT || 3306
+    port: process.env.DB_PORT || 3306,
+    multipleStatements: true // Allow multiple statements for schema creation
   });
-
+  
   try {
-    console.log('🔧 Creating database from scratch...');
+    console.log('✅ Connected to MySQL server');
     
-    // Drop existing database
-    await connection.execute(`DROP DATABASE IF EXISTS \`${process.env.DB_NAME || 'buku_kas'}\``);
-    console.log('✅ Old database dropped');
-
-    // Create new database
-    await connection.execute(`CREATE DATABASE \`${process.env.DB_NAME || 'buku_kas'}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
-    console.log('✅ New database created');
-
-    // Close old connection and create new one without a default database
-    await connection.end();
+    // Read SQL file
+    const sqlPath = path.join(__dirname, '..', 'database', 'uangin_complete.sql');
     
-    connection = await mysql.createConnection({
-      host: process.env.DB_HOST || 'localhost',
-      user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD || '',
-      port: process.env.DB_PORT || 3306,
-      multipleStatements: true,
-    });
-
-    // Read SQL schema file
-    const sqlFile = path.join(__dirname, '..', 'database', 'uangin_complete.sql');
-    const sql = fs.readFileSync(sqlFile, 'utf8');
-
-    // Execute the full SQL schema file in one call
-    try {
-      await connection.query(sql);
-    } catch (error) {
-      console.error('❌ Error importing SQL schema:', error.message);
-      throw error;
+    if (!fs.existsSync(sqlPath)) {
+      console.error('❌ SQL file not found:', sqlPath);
+      process.exit(1);
     }
-
-    console.log('✅ All tables created successfully!');
-    console.log('\n📋 Database Structure:');
-    console.log('  ✓ users');
-    console.log('  ✓ categories');
-    console.log('  ✓ transactions');
-    console.log('  ✓ recurring_transactions');
-    console.log('  ✓ budgets');
-    console.log('  ✓ undo_log');
-    console.log('  ✓ v_monthly_summary (view)');
-    console.log('  ✓ v_category_summary (view)');
-
-    console.log('\n🎉 Database initialization complete!');
-    process.exit(0);
-
+    
+    const sql = fs.readFileSync(sqlPath, 'utf8');
+    console.log('📄 Reading database schema...');
+    
+    // Execute SQL
+    console.log('🔨 Creating database and schema...');
+    await connection.query(sql);
+    
+    console.log('✅ Database schema created successfully!\n');
+    console.log('📊 Database Details:');
+    console.log(`   - Database: buku_kas`);
+    console.log(`   - Tables: users, categories, transactions, recurring_transactions, budgets, undo_log`);
+    console.log(`   - Views: v_monthly_summary, v_category_summary`);
+    console.log(`   - Triggers: after_transaction_insert, after_transaction_delete\n`);
+    
   } catch (error) {
-    console.error('❌ Error:', error.message);
+    console.error('❌ Error initializing database:', error.message);
     process.exit(1);
   } finally {
     await connection.end();
   }
 }
 
-// Load .env
-require('dotenv').config();
+// Run initialization
 initializeDatabase();

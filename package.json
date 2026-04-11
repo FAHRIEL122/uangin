@@ -1,38 +1,46 @@
 {
   "name": "uangin",
   "version": "1.0.0",
-  "description": "Aplikasi Buku Kas Pribadi untuk mencatat pemasukan dan pengeluaran harian",
+  "description": "Aplikasi Buku Kas Pribadi Modern - Personal Finance Management Web Application",
   "main": "backend/server.js",
   "scripts": {
     "start": "node backend/server.js",
     "dev": "nodemon backend/server.js",
-    "setup-db": "node scripts/init-db.js",
-    "clear-data": "node scripts/clear-data.js",
-    "init-data": "node scripts/init-data.js",
-    "improve-db": "node scripts/improve-database.js"
+    "init-db": "node scripts/init-db.js",
+    "seed": "node scripts/init-data.js",
+    "clear": "node scripts/clear-data.js"
   },
   "keywords": [
-    "buku kas",
-    "keuangan pribadi",
-    "pemasukan",
-    "pengeluaran",
-    "budget"
+    "finance",
+    "budget",
+    "transaction",
+    "money",
+    "expense",
+    "income",
+    "indonesian"
   ],
-  "author": "",
+  "author": "Fahriel",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/FAHRIEL122/uangin"
+  },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "express-rate-limit": "^6.7.0",
-    "helmet": "^6.0.1",
-    "jsonwebtoken": "^9.0.0",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
-    "mysql2": "^3.6.0"
+    "mysql2": "^3.6.5"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
   }
 }

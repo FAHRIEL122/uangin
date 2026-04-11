@@ -1,162 +1,73 @@
-// Error Handler Middleware
-const multer = require('multer');
+const { error } = require('../utils/response');
 
-const errorHandler = (err, req, res, next) => {
-  console.error('Error:', err.message || err);
-  if (err.code) console.error('Error Code:', err.code);
-  if (err.stack) console.error('Stack:', err.stack);
-
-  // Handle Multer errors (file upload)
-  if (err instanceof multer.MulterError) {
-    if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(413).json({
-        success: false,
-        message: 'Ukuran file terlalu besar. Maksimal 5 MB.',
-      });
+// Global error handler
+function errorHandler(err, req, res, next) {
+  // Log error for debugging
+  console.error('Error:', err.message);
+  console.error('Stack:', err.stack);
+  
+  // MySQL errors
+  if (err.code) {
+    switch (err.code) {
+      case 'ER_DUP_ENTRY':
+        return error(res, 'Data already exists', 400);
+      case 'ER_NO_REFERENCED_ROW':
+        return error(res, 'Referenced data not found', 400);
+      case 'ER_NO_REFERENCED_ROW_2':
+        return error(res, 'Cannot delete: data is being used', 400);
+      case 'ER_ROW_IS_REFERENCED':
+        return error(res, 'Cannot delete: data is being used by other records', 400);
+      case 'ER_BAD_NULL_ERROR':
+        return error(res, 'Required field is missing', 400);
+      case 'WARN_DATA_TRUNCATED':
+        return error(res, 'Invalid data format', 400);
+      case 'ECONNREFUSED':
+        return error(res, 'Database connection failed', 500);
+      default:
+        return error(res, `Database error: ${err.message}`, 500);
     }
-    return res.status(400).json({
-      success: false,
-      message: `Upload error: ${err.message}`,
-    });
   }
-
-  // Handle custom file filter errors
-  if (err.message && (err.message.includes('File type tidak diizinkan') || err.message.includes('not allowed'))) {
-    return res.status(400).json({
-      success: false,
-      message: err.message,
-    });
+  
+  // Multer errors (file upload)
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return error(res, 'File size too large. Maximum size is 5MB', 400);
   }
-
-  // Handle validation errors
+  
+  if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+    return error(res, 'Too many files uploaded', 400);
+  }
+  
+  if (err.message && err.message.includes('file type')) {
+    return error(res, err.message, 400);
+  }
+  
+  // JWT errors
+  if (err.name === 'JsonWebTokenError') {
+    return error(res, 'Invalid token', 401);
+  }
+  
+  if (err.name === 'TokenExpiredError') {
+    return error(res, 'Token expired. Please login again', 401);
+  }
+  
+  // Validation errors
   if (err.name === 'ValidationError') {
-    return res.status(400).json({
-      success: false,
-      message: 'Validation error',
-      errors: err.message,
-    });
+    return error(res, err.message, 400);
   }
+  
+  // Default error
+  const statusCode = err.statusCode || err.status || 500;
+  const message = err.message || 'Internal server error';
+  
+  return error(res, message, statusCode);
+}
 
-  // Handle unauthorized
-  if (err.name === 'UnauthorizedError') {
-    return res.status(401).json({
-      success: false,
-      message: 'Unauthorized',
-    });
-  }
+// 404 handler for undefined routes
+function notFoundHandler(req, res) {
+  return error(res, `Route ${req.method} ${req.originalUrl} not found`, 404);
+}
 
-  // Handle database connection errors
-  if (err.code === 'PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR' ||
-      err.code === 'PROTOCOL_CONNECTION_LOST' ||
-      err.code === 'ECONNREFUSED' ||
-      err.code === 'ECONNRESET' ||
-      err.code === 'ETIMEDOUT') {
-    console.error('Database connection error:', err);
-    return res.status(503).json({
-      success: false,
-      message: 'Database connection error. Please try again.',
-    });
-  }
-
-  // Handle unique constraint violations
-  if (err.code === 'ER_DUP_ENTRY') {
-    const field = err.message.includes('username') ? 'Username' :
-                  err.message.includes('email') ? 'Email' :
-                  err.message.includes('unique_user_category') ? 'Category (already exists for this type)' :
-                  'Field';
-    return res.status(400).json({
-      success: false,
-      message: `${field} already exists`,
-    });
-  }
-
-  // Handle foreign key constraint violations
-  if (err.code === 'ER_NO_REFERENCED_ROW_2' || err.code === 'ER_NO_REFERENCED_ROW') {
-    return res.status(400).json({
-      success: false,
-      message: 'Invalid reference. Please check the category or user exists.',
-    });
-  }
-
-  // Handle check constraint violations
-  if (err.code === 'ER_SIGNAL_EXCEPTION') {
-    return res.status(400).json({
-      success: false,
-      message: err.message || 'Invalid data constraint',
-    });
-  }
-
-  // Handle row is referenced
-  if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.code === 'ER_ROW_IS_REFERENCED') {
-    return res.status(400).json({
-      success: false,
-      message: 'Cannot delete. This item is still in use.',
-    });
-  }
-
-  // Handle syntax errors (likely from bad input)
-  if (err.code === 'ER_PARSE_ERROR' || err.code === 'ER_SYNTAX_ERROR') {
-    console.error('SQL Parse Error:', err.message);
-    return res.status(400).json({
-      success: false,
-      message: 'Invalid data format',
-    });
-  }
-
-  // Handle access denied
-  if (err.code === 'ER_ACCESS_DENIED_ERROR') {
-    return res.status(500).json({
-      success: false,
-      message: 'Database access denied',
-    });
-  }
-
-  // Handle 'no database selected'
-  if (err.code === 'ER_NO_DB_ERROR') {
-    return res.status(500).json({
-      success: false,
-      message: 'Database not found',
-    });
-  }
-
-  // Handle bad null error (trying to insert null into NOT NULL column)
-  if (err.code === 'ER_BAD_NULL_ERROR' || err.code === 'ER_BAD_NULL_ERROR') {
-    return res.status(400).json({
-      success: false,
-      message: 'Missing required field: ' + (err.message || 'unknown field'),
-    });
-  }
-
-  // Handle data too long
-  if (err.code === 'ER_DATA_TOO_LONG') {
-    return res.status(400).json({
-      success: false,
-      message: 'Data too long. Please shorten the input.',
-    });
-  }
-
-  // Handle out of range
-  if (err.code === 'ER_WARN_DATA_OUT_OF_RANGE') {
-    return res.status(400).json({
-      success: false,
-      message: 'Data out of range. Please check your input.',
-    });
-  }
-
-  // Handle incorrect datetime value
-  if (err.code === 'ER_TRUNCATED_WRONG_VALUE' || err.code === 'ER_WRONG_VALUE') {
-    return res.status(400).json({
-      success: false,
-      message: 'Invalid data format. Please check your input.',
-    });
-  }
-
-  // Default error response
-  res.status(err.statusCode || 500).json({
-    success: false,
-    message: err.message || 'Internal server error',
-    ...(process.env.NODE_ENV === 'development' && { debug: { message: err.message, code: err.code } }),
-  });
+module.exports = {
+  errorHandler,
+  notFoundHandler
 };
-
-module.exports = errorHandler;

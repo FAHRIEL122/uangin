@@ -1,15 +1,14 @@
-// Report Routes
 const express = require('express');
 const router = express.Router();
 const reportController = require('../controllers/reportController');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
 
-router.use(authenticateToken);
+router.use(authenticate);
 
-router.get('/summary', reportController.getMonthlySummary);
-router.get('/transactions', reportController.getTransactionDetail);
-router.get('/categories', reportController.getCategorySummary);
+router.get('/summary', reportController.getSummary);
+router.get('/transactions', reportController.getTransactionList);
+router.get('/categories', reportController.getCategoryBreakdown);
+router.get('/budget', reportController.getBudgetStatus);
 router.get('/insights', reportController.getInsights);
-router.get('/budget', reportController.getBudgetReport);
 
 module.exports = router;

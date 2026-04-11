@@ -1,186 +1,191 @@
-// Category Controller
-const db = require('../config/database');
-const { sendSuccess, sendError } = require('../utils/response');
+const { pool } = require('../config/database');
+const { success, error, badRequest, notFound, validationError } = require('../utils/response');
+const { sanitizeString } = require('../utils/validation');
 
 // Get all categories for user
-exports.getCategories = async (req, res) => {
+async function getCategories(req, res) {
   try {
     const userId = req.user.userId;
-
-    const connection = await db.getConnection();
-
-    try {
-      const [categories] = await connection.execute(
-        `SELECT id, name, type, color, is_default 
-         FROM categories 
-         WHERE user_id = ? 
-         ORDER BY type, name`,
-        [userId]
-      );
-
-      sendSuccess(res, categories, 'Categories fetched successfully');
-
-    } finally {
-      connection.release();
+    const { type } = req.query;
+    
+    let query = 'SELECT * FROM categories WHERE user_id = ? ORDER BY type, name';
+    const params = [userId];
+    
+    if (type && ['income', 'expense'].includes(type)) {
+      query = 'SELECT * FROM categories WHERE user_id = ? AND type = ? ORDER BY name';
+      params.push(type);
     }
-
-  } catch (error) {
-    console.error('Get categories error:', error);
-    sendError(res, 'Failed to fetch categories', 500);
+    
+    const [categories] = await pool.query(query, params);
+    
+    return success(res, 'Kategori berhasil diambil', categories);
+    
+  } catch (err) {
+    console.error('Get categories error:', err.message);
+    return error(res, 'Terjadi kesalahan saat mengambil kategori', 500);
   }
-};
+}
 
 // Create category
-exports.createCategory = async (req, res) => {
+async function createCategory(req, res) {
   try {
     const userId = req.user.userId;
-    const { name, type, color } = req.body;
-
-    // Validation
-    if (!name || !type) {
-      return sendError(res, 'Name and type are required', 400);
+    const { name, type, icon, color } = req.body;
+    
+    // Validate
+    if (!name || !name.trim()) {
+      return badRequest(res, 'Nama kategori diperlukan');
     }
-
-    if (!['income', 'expense'].includes(type)) {
-      return sendError(res, 'Type must be income or expense', 400);
+    
+    if (!type || !['income', 'expense'].includes(type)) {
+      return badRequest(res, 'Tipe harus "income" atau "expense"');
     }
-
-    const connection = await db.getConnection();
-
-    try {
-      // Check if category already exists
-      const [existing] = await connection.execute(
-        'SELECT id FROM categories WHERE user_id = ? AND name = ? AND type = ?',
-        [userId, name, type]
-      );
-
-      if (existing.length > 0) {
-        return sendError(res, 'Category already exists', 400);
-      }
-
-      // Insert category
-      const [result] = await connection.execute(
-        `INSERT INTO categories (user_id, name, type, color, is_default)
-         VALUES (?, ?, ?, ?, 0)`,
-        [userId, name, type, color || null]
-      );
-
-      const categoryId = result.insertId;
-
-      sendSuccess(res, { id: categoryId, name, type, color }, 'Category created successfully', 201);
-
-    } finally {
-      connection.release();
+    
+    // Check if category already exists
+    const [existing] = await pool.query(
+      'SELECT id FROM categories WHERE user_id = ? AND name = ? AND type = ?',
+      [userId, name.trim(), type]
+    );
+    
+    if (existing.length > 0) {
+      return badRequest(res, 'Kategori sudah ada');
     }
-
-  } catch (error) {
-    console.error('Create category error:', error);
-    sendError(res, 'Failed to create category', 500);
+    
+    // Insert
+    const [result] = await pool.query(
+      'INSERT INTO categories (user_id, name, type, icon, color) VALUES (?, ?, ?, ?, ?)',
+      [userId, sanitizeString(name.trim()), type, icon || null, color || '#3b82f6']
+    );
+    
+    // Get created category
+    const [categories] = await pool.query(
+      'SELECT * FROM categories WHERE id = ?',
+      [result.insertId]
+    );
+    
+    return success(res, 'Kategori berhasil ditambahkan', categories[0], 201);
+    
+  } catch (err) {
+    console.error('Create category error:', err.message);
+    return error(res, 'Terjadi kesalahan saat menambahkan kategori', 500);
   }
-};
+}
 
 // Update category
-exports.updateCategory = async (req, res) => {
+async function updateCategory(req, res) {
   try {
     const userId = req.user.userId;
     const categoryId = req.params.id;
-    const { name, color } = req.body;
-
-    const connection = await db.getConnection();
-
-    try {
-      // Verify category belongs to user
-      const [categories] = await connection.execute(
-        'SELECT is_default FROM categories WHERE id = ? AND user_id = ?',
-        [categoryId, userId]
-      );
-
-      if (categories.length === 0) {
-        return sendError(res, 'Category not found', 404);
-      }
-
-      // Cannot edit default categories
-      if (categories[0].is_default) {
-        return sendError(res, 'Cannot edit default categories', 403);
-      }
-
-      // Update category
-      await connection.execute(
-        'UPDATE categories SET name = ?, color = ? WHERE id = ?',
-        [name || undefined, color || undefined, categoryId]
-      );
-
-      sendSuccess(res, { id: categoryId, name, color }, 'Category updated successfully');
-
-    } finally {
-      connection.release();
+    const { name, icon, color } = req.body;
+    
+    // Check if category exists
+    const [existing] = await pool.query(
+      'SELECT * FROM categories WHERE id = ? AND user_id = ?',
+      [categoryId, userId]
+    );
+    
+    if (existing.length === 0) {
+      return notFound(res, 'Kategori tidak ditemukan');
     }
-
-  } catch (error) {
-    console.error('Update category error:', error);
-    sendError(res, 'Failed to update category', 500);
+    
+    // Build update query
+    const updates = [];
+    const values = [];
+    
+    if (name !== undefined) {
+      if (!name.trim()) {
+        return badRequest(res, 'Nama kategori diperlukan');
+      }
+      
+      // Check for duplicate name
+      const [duplicates] = await pool.query(
+        'SELECT id FROM categories WHERE user_id = ? AND name = ? AND type = ? AND id != ?',
+        [userId, name.trim(), existing[0].type, categoryId]
+      );
+      
+      if (duplicates.length > 0) {
+        return badRequest(res, 'Nama kategori sudah digunakan');
+      }
+      
+      updates.push('name = ?');
+      values.push(sanitizeString(name.trim()));
+    }
+    
+    if (icon !== undefined) {
+      updates.push('icon = ?');
+      values.push(icon || null);
+    }
+    
+    if (color !== undefined) {
+      updates.push('color = ?');
+      values.push(color || '#3b82f6');
+    }
+    
+    if (updates.length === 0) {
+      return badRequest(res, 'Tidak ada data yang diubah');
+    }
+    
+    values.push(categoryId);
+    
+    await pool.query(
+      `UPDATE categories SET ${updates.join(', ')} WHERE id = ?`,
+      values
+    );
+    
+    // Get updated category
+    const [categories] = await pool.query(
+      'SELECT * FROM categories WHERE id = ?',
+      [categoryId]
+    );
+    
+    return success(res, 'Kategori berhasil diperbarui', categories[0]);
+    
+  } catch (err) {
+    console.error('Update category error:', err.message);
+    return error(res, 'Terjadi kesalahan saat memperbarui kategori', 500);
   }
-};
+}
 
 // Delete category
-exports.deleteCategory = async (req, res) => {
+async function deleteCategory(req, res) {
   try {
     const userId = req.user.userId;
     const categoryId = req.params.id;
-
-    const connection = await db.getConnection();
-
-    try {
-      // Verify category belongs to user and is not default
-      const [categories] = await connection.execute(
-        'SELECT id, type, is_default FROM categories WHERE id = ? AND user_id = ?',
-        [categoryId, userId]
-      );
-
-      if (categories.length === 0) {
-        return sendError(res, 'Category not found', 404);
-      }
-
-      const category = categories[0];
-
-      if (category.is_default) {
-        return sendError(res, 'Cannot delete default categories', 403);
-      }
-
-      // Get "Lainnya" category for the same type
-      const categoryName = category.type === 'income' ? 'Lainnya (Pemasukan)' : 'Lainnya (Pengeluaran)';
-      
-      const [otherCategory] = await connection.execute(
-        'SELECT id FROM categories WHERE user_id = ? AND name = ? AND type = ? AND is_default = 1',
-        [userId, categoryName, category.type]
-      );
-
-      if (otherCategory.length === 0) {
-        return sendError(res, 'Default category not found', 500);
-      }
-
-      const otherCategoryId = otherCategory[0].id;
-
-      // Move transactions to "Lainnya"
-      await connection.execute(
-        'UPDATE transactions SET category_id = ? WHERE category_id = ? AND user_id = ?',
-        [otherCategoryId, categoryId, userId]
-      );
-
-      // Delete category
-      await connection.execute(
-        'DELETE FROM categories WHERE id = ?',
-        [categoryId]
-      );
-
-      sendSuccess(res, { categoryId }, 'Category deleted successfully');
-
-    } finally {
-      connection.release();
+    
+    // Check if category exists
+    const [existing] = await pool.query(
+      'SELECT * FROM categories WHERE id = ? AND user_id = ?',
+      [categoryId, userId]
+    );
+    
+    if (existing.length === 0) {
+      return notFound(res, 'Kategori tidak ditemukan');
     }
-
-  } catch (error) {
-    console.error('Delete category error:', error);
-    sendError(res, 'Failed to delete category', 500);
+    
+    // Check if category has transactions
+    const [transactions] = await pool.query(
+      'SELECT COUNT(*) as count FROM transactions WHERE category_id = ?',
+      [categoryId]
+    );
+    
+    if (transactions[0].count > 0) {
+      return badRequest(res, 'Kategori tidak bisa dihapus karena masih memiliki transaksi');
+    }
+    
+    // Delete category
+    await pool.query('DELETE FROM categories WHERE id = ?', [categoryId]);
+    
+    return success(res, 'Kategori berhasil dihapus');
+    
+  } catch (err) {
+    console.error('Delete category error:', err.message);
+    return error(res, 'Terjadi kesalahan saat menghapus kategori', 500);
   }
+}
+
+module.exports = {
+  getCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory
 };

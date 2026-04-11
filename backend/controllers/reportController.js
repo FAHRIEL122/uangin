@@ -1,320 +1,341 @@
-// Report Controller
-const db = require('../config/database');
-const { sendSuccess, sendError } = require('../utils/response');
+const { pool } = require('../config/database');
+const { success, error, badRequest } = require('../utils/response');
 
-// Get monthly summary
-exports.getMonthlySummary = async (req, res) => {
+// Monthly summary
+async function getSummary(req, res) {
   try {
     const userId = req.user.userId;
     const { month, year } = req.query;
-
-    if (!month || !year) {
-      return sendError(res, 'Month and year are required', 400);
+    
+    const now = new Date();
+    const targetMonth = month ? parseInt(month) : now.getMonth() + 1;
+    const targetYear = year ? parseInt(year) : now.getFullYear();
+    
+    if (targetMonth < 1 || targetMonth > 12) {
+      return badRequest(res, 'Bulan harus antara 1-12');
     }
-
-    const connection = await db.getConnection();
-
-    try {
-      const [summary] = await connection.execute(
-        `SELECT 
-          SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as total_income,
-          SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as total_expense,
-          COUNT(*) as transaction_count
-         FROM transactions
-         WHERE user_id = ? AND YEAR(transaction_date) = ? AND MONTH(transaction_date) = ?`,
-        [userId, parseInt(year), parseInt(month)]
-      );
-
-      const summaryData = summary[0];
-      const total_income = parseFloat(summaryData.total_income || 0);
-      const total_expense = parseFloat(summaryData.total_expense || 0);
-
-      sendSuccess(res, {
-        month: parseInt(month),
-        year: parseInt(year),
-        total_income,
-        total_expense,
-        net_balance: total_income - total_expense,
-        transaction_count: summaryData.transaction_count,
-      }, 'Monthly summary fetched successfully');
-
-    } finally {
-      connection.release();
-    }
-
-  } catch (error) {
-    console.error('Get monthly summary error:', error);
-    sendError(res, 'Failed to fetch monthly summary', 500);
+    
+    // Get summary data
+    const [summary] = await pool.query(
+      `SELECT 
+        COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as total_income,
+        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as total_expense,
+        COUNT(CASE WHEN type = 'income' THEN 1 END) as income_count,
+        COUNT(CASE WHEN type = 'expense' THEN 1 END) as expense_count
+      FROM transactions
+      WHERE user_id = ? 
+        AND MONTH(transaction_date) = ?
+        AND YEAR(transaction_date) = ?`,
+      [userId, targetMonth, targetYear]
+    );
+    
+    // Get top expense categories
+    const [topCategories] = await pool.query(
+      `SELECT 
+        c.name,
+        c.icon,
+        c.color,
+        COUNT(t.id) as transaction_count,
+        SUM(t.amount) as total_amount
+      FROM transactions t
+      JOIN categories c ON t.category_id = c.id
+      WHERE t.user_id = ? 
+        AND t.type = 'expense'
+        AND MONTH(t.transaction_date) = ?
+        AND YEAR(t.transaction_date) = ?
+      GROUP BY c.id, c.name, c.icon, c.color
+      ORDER BY total_amount DESC
+      LIMIT 5`,
+      [userId, targetMonth, targetYear]
+    );
+    
+    return success(res, 'Ringkasan berhasil diambil', {
+      ...summary[0],
+      balance: summary[0].total_income - summary[0].total_expense,
+      top_expense_categories: topCategories,
+      month: targetMonth,
+      year: targetYear
+    });
+    
+  } catch (err) {
+    console.error('Get summary error:', err.message);
+    return error(res, 'Terjadi kesalahan saat mengambil ringkasan', 500);
   }
-};
+}
 
-// Get transactions detail report
-exports.getTransactionDetail = async (req, res) => {
+// Transaction list for reports
+async function getTransactionList(req, res) {
   try {
     const userId = req.user.userId;
     const { month, year, type } = req.query;
-
-    if (!month || !year) {
-      return sendError(res, 'Month and year are required', 400);
+    
+    const now = new Date();
+    const targetMonth = month ? parseInt(month) : now.getMonth() + 1;
+    const targetYear = year ? parseInt(year) : now.getFullYear();
+    
+    let typeFilter = '';
+    const params = [userId, targetMonth, targetYear];
+    
+    if (type && ['income', 'expense'].includes(type)) {
+      typeFilter = ' AND t.type = ?';
+      params.push(type);
     }
-
-    const connection = await db.getConnection();
-
-    try {
-      let query = `SELECT 
-                    t.id,
-                    t.amount,
-                    t.type,
-                    t.description,
-                    t.transaction_date,
-                    t.transaction_time,
-                    c.name as category_name
-                   FROM transactions t
-                   JOIN categories c ON t.category_id = c.id
-                   WHERE t.user_id = ? AND YEAR(t.transaction_date) = ? AND MONTH(t.transaction_date) = ?`;
-
-      const params = [userId, parseInt(year), parseInt(month)];
-
-      if (type && ['income', 'expense'].includes(type)) {
-        query += ` AND t.type = ?`;
-        params.push(type);
-      }
-
-      query += ` ORDER BY t.transaction_date DESC, t.transaction_time DESC`;
-
-      const [transactions] = await connection.execute(query, params);
-
-      sendSuccess(res, transactions, 'Transaction detail fetched successfully');
-
-    } finally {
-      connection.release();
-    }
-
-  } catch (error) {
-    console.error('Get transaction detail error:', error);
-    sendError(res, 'Failed to fetch transaction detail', 500);
+    
+    const [transactions] = await pool.query(
+      `SELECT 
+        t.id,
+        t.type,
+        t.amount,
+        t.description,
+        t.transaction_date,
+        t.transaction_time,
+        c.name as category_name,
+        c.icon as category_icon,
+        c.color as category_color
+      FROM transactions t
+      LEFT JOIN categories c ON t.category_id = c.id
+      WHERE t.user_id = ?
+        AND MONTH(t.transaction_date) = ?
+        AND YEAR(t.transaction_date) = ?
+        ${typeFilter}
+      ORDER BY t.transaction_date DESC, t.created_at DESC`,
+      params
+    );
+    
+    return success(res, 'Daftar transaksi berhasil diambil', transactions);
+    
+  } catch (err) {
+    console.error('Get transaction list error:', err.message);
+    return error(res, 'Terjadi kesalahan saat mengambil daftar transaksi', 500);
   }
-};
+}
 
-// Get category summary report
-exports.getCategorySummary = async (req, res) => {
+// Category breakdown
+async function getCategoryBreakdown(req, res) {
   try {
     const userId = req.user.userId;
     const { month, year } = req.query;
-
-    if (!month || !year) {
-      return sendError(res, 'Month and year are required', 400);
-    }
-
-    const connection = await db.getConnection();
-
-    try {
-      const [summary] = await connection.execute(
-        `SELECT 
-          c.id as category_id,
-          c.name as category_name,
-          c.type,
-          COUNT(t.id) as transaction_count,
-          SUM(t.amount) as total_amount
-         FROM categories c
-         LEFT JOIN transactions t ON c.id = t.category_id 
-           AND t.user_id = ? 
-           AND YEAR(t.transaction_date) = ? 
-           AND MONTH(t.transaction_date) = ?
-         WHERE c.user_id = ?
-         GROUP BY c.id, c.name, c.type
-         HAVING total_amount IS NOT NULL
-         ORDER BY total_amount DESC`,
-        [userId, parseInt(year), parseInt(month), userId]
-      );
-
-      sendSuccess(res, summary, 'Category summary fetched successfully');
-
-    } finally {
-      connection.release();
-    }
-
-  } catch (error) {
-    console.error('Get category summary error:', error);
-    sendError(res, 'Failed to fetch category summary', 500);
+    
+    const now = new Date();
+    const targetMonth = month ? parseInt(month) : now.getMonth() + 1;
+    const targetYear = year ? parseInt(year) : now.getFullYear();
+    
+    const [categories] = await pool.query(
+      `SELECT 
+        c.name,
+        c.type,
+        c.icon,
+        c.color,
+        COUNT(t.id) as transaction_count,
+        SUM(t.amount) as total_amount,
+        AVG(t.amount) as average_amount
+      FROM categories c
+      LEFT JOIN transactions t ON c.id = t.category_id 
+        AND t.user_id = ?
+        AND MONTH(t.transaction_date) = ?
+        AND YEAR(t.transaction_date) = ?
+      WHERE c.user_id = ?
+      GROUP BY c.id, c.name, c.type, c.icon, c.color
+      HAVING transaction_count > 0
+      ORDER BY total_amount DESC`,
+      [userId, targetMonth, targetYear, userId]
+    );
+    
+    return success(res, 'Breakdown kategori berhasil diambil', categories);
+    
+  } catch (err) {
+    console.error('Get category breakdown error:', err.message);
+    return error(res, 'Terjadi kesalahan saat mengambil breakdown kategori', 500);
   }
-};
+}
 
-// Get automatic insights
-exports.getInsights = async (req, res) => {
+// Budget status
+async function getBudgetStatus(req, res) {
   try {
     const userId = req.user.userId;
     const { month, year } = req.query;
+    
+    const now = new Date();
+    const targetMonth = month ? parseInt(month) : now.getMonth() + 1;
+    const targetYear = year ? parseInt(year) : now.getFullYear();
+    
+    const [budgets] = await pool.query(
+      `SELECT 
+        b.id,
+        b.limit_amount,
+        b.spent_amount,
+        (b.limit_amount - b.spent_amount) as remaining,
+        CASE 
+          WHEN b.limit_amount > 0 THEN (b.spent_amount / b.limit_amount * 100)
+          ELSE 0 
+        END as percentage,
+        c.name as category_name,
+        c.icon as category_icon,
+        c.color as category_color
+      FROM budgets b
+      JOIN categories c ON b.category_id = c.id
+      WHERE b.user_id = ? AND b.month = ? AND b.year = ?
+      ORDER BY percentage DESC`,
+      [userId, targetMonth, targetYear]
+    );
+    
+    return success(res, 'Status budget berhasil diambil', budgets);
+    
+  } catch (err) {
+    console.error('Get budget status error:', err.message);
+    return error(res, 'Terjadi kesalahan saat mengambil status budget', 500);
+  }
+}
 
-    if (!month || !year) {
-      return sendError(res, 'Month and year are required', 400);
-    }
-
-    const connection = await db.getConnection();
-
-    try {
-      // Insight 1: Largest expense category
-      const [largestExpense] = await connection.execute(
-        `SELECT 
-          c.name as category_name,
-          SUM(t.amount) as total_amount,
-          COUNT(t.id) as transaction_count
-         FROM transactions t
-         JOIN categories c ON t.category_id = c.id
-         WHERE t.user_id = ? AND t.type = 'expense' 
-          AND YEAR(t.transaction_date) = ? AND MONTH(t.transaction_date) = ?
-         GROUP BY c.id, c.name
-         ORDER BY total_amount DESC
-         LIMIT 1`,
-        [userId, parseInt(year), parseInt(month)]
-      );
-
-      // Insight 2: Month comparison
-      const currentMonthDate = `${parseInt(year)}-${String(parseInt(month)).padStart(2, '0')}-01`;
-      const prevDate = new Date(currentMonthDate);
-      prevDate.setMonth(prevDate.getMonth() - 1);
-      const prevMonth = prevDate.getMonth() + 1;
-      const prevYear = prevDate.getFullYear();
-
-      const [currentMonthData] = await connection.execute(
-        `SELECT SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense
-         FROM transactions
-         WHERE user_id = ? AND YEAR(transaction_date) = ? AND MONTH(transaction_date) = ?`,
-        [userId, parseInt(year), parseInt(month)]
-      );
-
-      const [prevMonthData] = await connection.execute(
-        `SELECT SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense
-         FROM transactions
-         WHERE user_id = ? AND YEAR(transaction_date) = ? AND MONTH(transaction_date) = ?`,
-        [userId, prevYear, prevMonth]
-      );
-
-      const currentExpense = parseFloat(currentMonthData[0]?.expense || 0);
-      const prevExpense = parseFloat(prevMonthData[0]?.expense || 0);
-      let percentageChange = 0;
-      let changeDirection = 'stable';
-
-      if (prevExpense > 0) {
-        percentageChange = parseFloat((((currentExpense - prevExpense) / prevExpense) * 100).toFixed(2));
-        changeDirection = percentageChange > 0 ? 'up' : 'down';
-      }
-
-      // Insight 3: Top 3 expense categories
-      const [topCategories] = await connection.execute(
-        `SELECT 
-          c.name as category_name,
-          SUM(t.amount) as total_amount
-         FROM transactions t
-         JOIN categories c ON t.category_id = c.id
-         WHERE t.user_id = ? AND t.type = 'expense' 
-          AND YEAR(t.transaction_date) = ? AND MONTH(t.transaction_date) = ?
-         GROUP BY c.id, c.name
-         ORDER BY total_amount DESC
-         LIMIT 3`,
-        [userId, parseInt(year), parseInt(month)]
-      );
-
-      const insights = [];
-
-      if (largestExpense.length > 0) {
+// Auto-generated insights
+async function getInsights(req, res) {
+  try {
+    const userId = req.user.userId;
+    const { month, year } = req.query;
+    
+    const now = new Date();
+    const targetMonth = month ? parseInt(month) : now.getMonth() + 1;
+    const targetYear = year ? parseInt(year) : now.getFullYear();
+    
+    const insights = [];
+    
+    // Get totals
+    const [totals] = await pool.query(
+      `SELECT 
+        COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as total_income,
+        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as total_expense
+      FROM transactions
+      WHERE user_id = ? 
+        AND MONTH(transaction_date) = ?
+        AND YEAR(transaction_date) = ?`,
+      [userId, targetMonth, targetYear]
+    );
+    
+    const totalIncome = parseFloat(totals[0].total_income);
+    const totalExpense = parseFloat(totals[0].total_expense);
+    const balance = totalIncome - totalExpense;
+    
+    // Insight 1: Savings rate
+    if (totalIncome > 0) {
+      const savingsRate = ((totalIncome - totalExpense) / totalIncome * 100).toFixed(1);
+      if (savingsRate >= 20) {
         insights.push({
-          type: 'largest_expense',
-          message: `Pengeluaran terbesar bulan ini: ${largestExpense[0].category_name} (${largestExpense[0].transaction_count} transaksi)`,
-          data: largestExpense[0],
+          type: 'success',
+          icon: '💰',
+          message: `Bagus! Tingkat tabungan Anda ${savingsRate}% bulan ini. Pertahankan!`
+        });
+      } else if (savingsRate < 0) {
+        insights.push({
+          type: 'danger',
+          icon: '⚠️',
+          message: `Pengeluaran melebihi pendapatan! Defisit Rp ${Math.abs(balance).toLocaleString('id-ID')}`
         });
       }
-
+    }
+    
+    // Insight 2: Top spending category
+    const [topCategory] = await pool.query(
+      `SELECT c.name, SUM(t.amount) as total
+       FROM transactions t
+       JOIN categories c ON t.category_id = c.id
+       WHERE t.user_id = ? AND t.type = 'expense'
+         AND MONTH(t.transaction_date) = ? AND YEAR(t.transaction_date) = ?
+       GROUP BY c.id, c.name
+       ORDER BY total DESC
+       LIMIT 1`,
+      [userId, targetMonth, targetYear]
+    );
+    
+    if (topCategory.length > 0 && totalExpense > 0) {
+      const percentage = (parseFloat(topCategory[0].total) / totalExpense * 100).toFixed(1);
       insights.push({
-        type: 'expense_trend',
-        message: `Pengeluaran ${changeDirection === 'up' ? 'naik' : 'turun'} ${Math.abs(percentageChange)}% dari bulan lalu`,
-        data: {
-          current_expense: currentExpense,
-          previous_expense: prevExpense,
-          percentage_change: percentageChange,
-          direction: changeDirection,
-        },
+        type: 'info',
+        icon: '📊',
+        message: `${topCategory[0].name} adalah pengeluaran terbesar (${percentage}% dari total)`
       });
-
-      if (topCategories.length > 0) {
+      
+      if (percentage > 50) {
         insights.push({
-          type: 'top_categories',
-          message: `Top 3 pengeluaran: ${topCategories.map(c => c.category_name).join(', ')}`,
-          data: topCategories,
+          type: 'warning',
+          icon: '🔍',
+          message: `${percentage > 50 ? 'Lebih dari setengah' : 'Sebagian besar'} pengeluaran untuk ${topCategory[0].name}. Pertimbangkan untuk menguranginya.`
         });
       }
-
-      sendSuccess(res, { insights }, 'Insights generated successfully');
-
-    } finally {
-      connection.release();
     }
-
-  } catch (error) {
-    console.error('Get insights error:', error);
-    sendError(res, 'Failed to generate insights', 500);
+    
+    // Insight 3: Budget warnings
+    const [budgetWarnings] = await pool.query(
+      `SELECT c.name, b.limit_amount, b.spent_amount,
+              (b.spent_amount / b.limit_amount * 100) as percentage
+       FROM budgets b
+       JOIN categories c ON b.category_id = c.id
+       WHERE b.user_id = ? AND b.month = ? AND b.year = ?
+         AND (b.spent_amount / b.limit_amount) > 0.8`,
+      [userId, targetMonth, targetYear]
+    );
+    
+    if (budgetWarnings.length > 0) {
+      budgetWarnings.forEach(budget => {
+        const pct = budget.percentage.toFixed(1);
+        if (budget.percentage > 100) {
+          insights.push({
+            type: 'danger',
+            icon: '🚨',
+            message: `Budget ${budget.name} telah terlampaui! (${pct}%)`
+          });
+        } else {
+          insights.push({
+            type: 'warning',
+            icon: '⚡',
+            message: `Budget ${budget.name} hampir habis (${pct}%)`
+          });
+        }
+      });
+    }
+    
+    // Insight 4: Comparison with previous month
+    const prevMonth = targetMonth === 1 ? 12 : targetMonth - 1;
+    const prevYear = targetMonth === 1 ? targetYear - 1 : targetYear;
+    
+    const [prevTotals] = await pool.query(
+      `SELECT COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as total_expense
+       FROM transactions
+       WHERE user_id = ? 
+         AND MONTH(transaction_date) = ?
+         AND YEAR(transaction_date) = ?`,
+      [userId, prevMonth, prevYear]
+    );
+    
+    const prevExpense = parseFloat(prevTotals[0].total_expense);
+    if (prevExpense > 0 && totalExpense > 0) {
+      const change = ((totalExpense - prevExpense) / prevExpense * 100).toFixed(1);
+      if (change > 10) {
+        insights.push({
+          type: 'warning',
+          icon: '📈',
+          message: `Pengeluaran naik ${change}% dibanding bulan lalu`
+        });
+      } else if (change < -10) {
+        insights.push({
+          type: 'success',
+          icon: '📉',
+          message: `Pengeluaran turun ${Math.abs(change)}% dibanding bulan lalu. Bagus!`
+        });
+      }
+    }
+    
+    return success(res, 'Insight berhasil dibuat', { insights, month: targetMonth, year: targetYear });
+    
+  } catch (err) {
+    console.error('Get insights error:', err.message);
+    return error(res, 'Terjadi kesalahan saat membuat insight', 500);
   }
-};
+}
 
-// Get budget report
-exports.getBudgetReport = async (req, res) => {
-  try {
-    const userId = req.user.userId;
-    const { month, year } = req.query;
-
-    if (!month || !year) {
-      return sendError(res, 'Month and year are required', 400);
-    }
-
-    const connection = await db.getConnection();
-
-    try {
-      const [budgets] = await connection.execute(
-        `SELECT 
-          b.id,
-          b.category_id,
-          c.name as category_name,
-          b.limit_amount,
-          b.spent_amount,
-          (b.limit_amount - b.spent_amount) as remaining,
-          ROUND((b.spent_amount / b.limit_amount * 100), 2) as percentage_used,
-          CASE 
-            WHEN b.spent_amount > b.limit_amount THEN 'exceeded'
-            WHEN b.spent_amount / b.limit_amount >= 0.8 THEN 'warning'
-            ELSE 'ok'
-          END as status
-         FROM budgets b
-         JOIN categories c ON b.category_id = c.id
-         WHERE b.user_id = ? AND b.month = ? AND b.year = ?
-         ORDER BY percentage_used DESC`,
-        [userId, parseInt(month), parseInt(year)]
-      );
-
-      const report = {
-        month: parseInt(month),
-        year: parseInt(year),
-        budgets: budgets.map(b => ({
-          ...b,
-          limit_amount: parseFloat(b.limit_amount),
-          spent_amount: parseFloat(b.spent_amount),
-          remaining: parseFloat(b.remaining),
-        })),
-        summary: {
-          total_budgets: budgets.length,
-          exceeded_count: budgets.filter(b => b.status === 'exceeded').length,
-          warning_count: budgets.filter(b => b.status === 'warning').length,
-          ok_count: budgets.filter(b => b.status === 'ok').length,
-        },
-      };
-
-      sendSuccess(res, report, 'Budget report fetched successfully');
-
-    } finally {
-      connection.release();
-    }
-
-  } catch (error) {
-    console.error('Get budget report error:', error);
-    sendError(res, 'Failed to fetch budget report', 500);
-  }
+module.exports = {
+  getSummary,
+  getTransactionList,
+  getCategoryBreakdown,
+  getBudgetStatus,
+  getInsights
 };

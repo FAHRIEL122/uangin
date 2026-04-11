@@ -1,53 +1,76 @@
-// Backup Controller
-const db = require('../config/database');
-const { sendSuccess, sendError } = require('../utils/response');
+const { pool } = require('../config/database');
+const { success, error } = require('../utils/response');
 
-exports.getBackup = async (req, res) => {
+// Export all user data
+async function exportData(req, res) {
   try {
     const userId = req.user.userId;
-    const connection = await db.getConnection();
-
-    try {
-      const [users] = await connection.execute(
-        `SELECT id, username, email, full_name, phone, created_at
-         FROM users
-         WHERE id = ?`,
-        [userId]
-      );
-
-      const [categories] = await connection.execute(
-        `SELECT id, name, type, created_at
-         FROM categories
-         WHERE user_id = ?`,
-        [userId]
-      );
-
-      const [transactions] = await connection.execute(
-        `SELECT id, category_id, amount, type, description, transaction_date, transaction_time, is_recurring, attachment_path, created_at
-         FROM transactions
-         WHERE user_id = ?
-         ORDER BY transaction_date DESC, transaction_time DESC`,
-        [userId]
-      );
-
-      const [budgets] = await connection.execute(
-        `SELECT id, category_id, limit_amount, spent_amount, month, year, created_at
-         FROM budgets
-         WHERE user_id = ?`,
-        [userId]
-      );
-
-      sendSuccess(res, {
-        user: users[0] || null,
-        categories,
-        transactions,
-        budgets,
-      }, 'Backup data fetched successfully');
-    } finally {
-      connection.release();
+    
+    // Get user info
+    const [users] = await pool.query(
+      'SELECT id, username, email, full_name, phone, created_at FROM users WHERE id = ?',
+      [userId]
+    );
+    
+    if (users.length === 0) {
+      return error(res, 'User tidak ditemukan', 404);
     }
-  } catch (error) {
-    console.error('Get backup error:', error);
-    sendError(res, 'Failed to fetch backup data', 500);
+    
+    // Get categories
+    const [categories] = await pool.query(
+      'SELECT * FROM categories WHERE user_id = ?',
+      [userId]
+    );
+    
+    // Get transactions
+    const [transactions] = await pool.query(
+      `SELECT t.*, c.name as category_name, c.type as category_type
+       FROM transactions t
+       LEFT JOIN categories c ON t.category_id = c.id
+       WHERE t.user_id = ?
+       ORDER BY t.transaction_date DESC`,
+      [userId]
+    );
+    
+    // Get budgets
+    const [budgets] = await pool.query(
+      `SELECT b.*, c.name as category_name
+       FROM budgets b
+       JOIN categories c ON b.category_id = c.id
+       WHERE b.user_id = ?`,
+      [userId]
+    );
+    
+    // Get summary
+    const [summary] = await pool.query(
+      `SELECT 
+        COUNT(*) as total_transactions,
+        COUNT(CASE WHEN type = 'income' THEN 1 END) as total_income_transactions,
+        COUNT(CASE WHEN type = 'expense' THEN 1 END) as total_expense_transactions,
+        COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as total_income,
+        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as total_expense
+      FROM transactions
+      WHERE user_id = ?`,
+      [userId]
+    );
+    
+    const exportData = {
+      exported_at: new Date().toISOString(),
+      user: users[0],
+      summary: summary[0],
+      categories,
+      transactions,
+      budgets
+    };
+    
+    return success(res, 'Data berhasil diexport', exportData);
+    
+  } catch (err) {
+    console.error('Export error:', err.message);
+    return error(res, 'Terjadi kesalahan saat mengexport data', 500);
   }
+}
+
+module.exports = {
+  exportData
 };

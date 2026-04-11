@@ -1,10 +1,8 @@
-// Backup Routes
 const express = require('express');
 const router = express.Router();
 const backupController = require('../controllers/backupController');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
 
-router.use(authenticateToken);
-router.get('/', backupController.getBackup);
+router.get('/', authenticate, backupController.exportData);
 
 module.exports = router;

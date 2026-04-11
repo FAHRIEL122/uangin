@@ -1,243 +1,302 @@
-// Authentication Controller
 const bcrypt = require('bcryptjs');
-const db = require('../config/database');
-const { generateToken } = require('../utils/jwtHelper');
-const { sendSuccess, sendError } = require('../utils/response');
-const { validateEmail, validateUsername, validatePassword, getPasswordValidationMessage } = require('../utils/validation');
-
-const cookieOptions = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax',
-  path: '/',
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-};
+const { pool } = require('../config/database');
+const { generateToken, getTokenExpiration } = require('../utils/jwtHelper');
+const { success, error, validationError, unauthorized, badRequest } = require('../utils/response');
+const { validateUsername, validateEmail, validatePassword, sanitizeString } = require('../utils/validation');
 
 // Register new user
-exports.register = async (req, res) => {
+async function register(req, res) {
   try {
     const { username, email, password, full_name } = req.body;
-
-    // Validation
-    if (!username || !email || !password) {
-      return sendError(res, 'Username, email, and password are required', 400);
+    
+    // Validate inputs
+    const errors = [];
+    errors.push(...validateUsername(username));
+    errors.push(...validateEmail(email));
+    errors.push(...validatePassword(password));
+    
+    if (errors.length > 0) {
+      return validationError(res, errors);
     }
-
-    if (!validateUsername(username)) {
-      return sendError(res, 'Username harus 4-20 karakter alphanumeric', 400);
-    }
-
-    if (!validateEmail(email)) {
-      return sendError(res, 'Format email tidak valid', 400);
-    }
-
-    if (!validatePassword(password)) {
-      return sendError(res, getPasswordValidationMessage(), 400);
-    }
-
-    const connection = await db.getConnection();
-
-    try {
-      // Check if username or email already exists
-      const [existingUser] = await connection.execute(
-        'SELECT id FROM users WHERE username = ? OR email = ?',
-        [username, email]
-      );
-
-      if (existingUser.length > 0) {
-        return sendError(res, 'Username atau email sudah terdaftar', 400);
+    
+    // Sanitize inputs
+    const cleanUsername = sanitizeString(username.trim());
+    const cleanEmail = sanitizeString(email.trim().toLowerCase());
+    const cleanFullName = full_name ? sanitizeString(full_name.trim()) : null;
+    
+    // Check if username or email already exists
+    const [existing] = await pool.query(
+      'SELECT id FROM users WHERE username = ? OR email = ?',
+      [cleanUsername, cleanEmail]
+    );
+    
+    if (existing.length > 0) {
+      const exists = existing[0];
+      const [checkUsername] = await pool.query('SELECT id FROM users WHERE username = ?', [cleanUsername]);
+      if (checkUsername.length > 0) {
+        return badRequest(res, 'Username sudah digunakan');
       }
-
-      // Hash password with stronger salt factor (12 instead of 10)
-      const hashedPassword = await bcrypt.hash(password, 12);
-
-      // Insert user
-      const [result] = await connection.execute(
-        'INSERT INTO users (username, email, password_hash, full_name) VALUES (?, ?, ?, ?)',
-        [username, email, hashedPassword, full_name || null]
-      );
-
-      const userId = result.insertId;
-
-      // Insert default categories
-      const defaultCategories = [
-        { name: 'Gaji', type: 'income', is_default: true, color: '#10b981' },
-        { name: 'Bonus', type: 'income', is_default: true, color: '#059669' },
-        { name: 'Investasi', type: 'income', is_default: true, color: '#0891b2' },
-        { name: 'Makanan', type: 'expense', is_default: true, color: '#ef4444' },
-        { name: 'Transport', type: 'expense', is_default: true, color: '#f97316' },
-        { name: 'Utilitas', type: 'expense', is_default: true, color: '#eab308' },
-        { name: 'Hiburan', type: 'expense', is_default: true, color: '#8b5cf6' },
-        { name: 'Kesehatan', type: 'expense', is_default: true, color: '#06b6d4' },
-        { name: 'Lainnya (Pemasukan)', type: 'income', is_default: true, color: '#6b7280' },
-        { name: 'Lainnya (Pengeluaran)', type: 'expense', is_default: true, color: '#6b7280' },
-      ];
-
-      for (const category of defaultCategories) {
-        await connection.execute(
-          'INSERT INTO categories (user_id, name, type, color, is_default) VALUES (?, ?, ?, ?, ?)',
-          [userId, category.name, category.type, category.color, category.is_default]
-        );
-      }
-
-      // Generate token
-      const token = generateToken(userId);
-
-      // Set secure cookie for session (helps protect against XSS)
-      res.cookie('token', token, cookieOptions);
-
-      sendSuccess(res, {
-        userId,
-        username,
-        email,
-        token
-      }, 'Registrasi berhasil', 201);
-
-    } finally {
-      connection.release();
+      return badRequest(res, 'Email sudah digunakan');
     }
-
-  } catch (error) {
-    console.error('Register error:', error);
-    sendError(res, 'Registrasi gagal', 500);
+    
+    // Hash password
+    const saltRounds = 12;
+    const passwordHash = await bcrypt.hash(password, saltRounds);
+    
+    // Create user
+    const [result] = await pool.query(
+      'INSERT INTO users (username, email, password_hash, full_name) VALUES (?, ?, ?, ?)',
+      [cleanUsername, cleanEmail, passwordHash, cleanFullName]
+    );
+    
+    const userId = result.insertId;
+    
+    // Create default categories
+    const defaultCategories = [
+      // Income categories
+      [userId, 'Gaji', 'income', '💰', '#10b981'],
+      [userId, 'Freelance', 'income', '💼', '#3b82f6'],
+      [userId, 'Investasi', 'income', '📈', '#8b5cf6'],
+      [userId, 'Lainnya', 'income', '💵', '#6b7280'],
+      // Expense categories
+      [userId, 'Makanan & Minuman', 'expense', '🍔', '#ef4444'],
+      [userId, 'Transportasi', 'expense', '🚗', '#f59e0b'],
+      [userId, 'Belanja', 'expense', '🛍️', '#ec4899'],
+      [userId, 'Tagihan & Utilitas', 'expense', '📱', '#6366f1'],
+      [userId, 'Hiburan', 'expense', '🎮', '#14b8a6'],
+      [userId, 'Lainnya', 'expense', '📦', '#6b7280']
+    ];
+    
+    await pool.query(
+      'INSERT INTO categories (user_id, name, type, icon, color) VALUES ?',
+      [defaultCategories]
+    );
+    
+    // Generate token
+    const token = generateToken(userId, cleanUsername);
+    const expiresIn = getTokenExpiration();
+    
+    // Set cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: expiresIn
+    });
+    
+    // Return success
+    return success(res, 'Registrasi berhasil', {
+      user: {
+        id: userId,
+        username: cleanUsername,
+        email: cleanEmail,
+        full_name: cleanFullName
+      },
+      token
+    }, 201);
+    
+  } catch (err) {
+    console.error('Register error:', err.message);
+    return error(res, 'Terjadi kesalahan saat registrasi', 500);
   }
-};
+}
 
 // Login user
-exports.login = async (req, res) => {
+async function login(req, res) {
   try {
     const { username, password } = req.body;
-
-    // Validation
+    
+    // Validate inputs
     if (!username || !password) {
-      return sendError(res, 'Username dan password harus diisi', 400);
+      return badRequest(res, 'Username dan password diperlukan');
     }
-
-    const connection = await db.getConnection();
-
-    try {
-      // Get user by username
-      const [users] = await connection.execute(
-        'SELECT id, username, email, password_hash FROM users WHERE username = ?',
-        [username]
-      );
-
-      if (users.length === 0) {
-        return sendError(res, 'Username atau password salah', 401);
-      }
-
-      const user = users[0];
-
-      // Verify password
-      const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-
-      if (!isPasswordValid) {
-        return sendError(res, 'Username atau password salah', 401);
-      }
-
-      // Generate token
-      const token = generateToken(user.id);
-
-      // Set secure cookie for session (helps protect against XSS)
-      res.cookie('token', token, cookieOptions);
-
-      sendSuccess(res, {
-        userId: user.id,
+    
+    // Find user
+    const [users] = await pool.query(
+      'SELECT id, username, email, password_hash, full_name FROM users WHERE username = ?',
+      [username.trim()]
+    );
+    
+    if (users.length === 0) {
+      return unauthorized(res, 'Username atau password salah');
+    }
+    
+    const user = users[0];
+    
+    // Verify password
+    const isValidPassword = await bcrypt.compare(password, user.password_hash);
+    
+    if (!isValidPassword) {
+      return unauthorized(res, 'Username atau password salah');
+    }
+    
+    // Generate token
+    const token = generateToken(user.id, user.username);
+    const expiresIn = getTokenExpiration();
+    
+    // Set cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: expiresIn
+    });
+    
+    // Return success
+    return success(res, 'Login berhasil', {
+      user: {
+        id: user.id,
         username: user.username,
         email: user.email,
-        token
-      }, 'Login berhasil');
-
-    } finally {
-      connection.release();
-    }
-
-  } catch (error) {
-    console.error('Login error:', error);
-    sendError(res, 'Login gagal', 500);
+        full_name: user.full_name
+      },
+      token
+    });
+    
+  } catch (err) {
+    console.error('Login error:', err.message);
+    return error(res, 'Terjadi kesalahan saat login', 500);
   }
-};
+}
 
-// Get current user
-exports.getCurrentUser = async (req, res) => {
+// Get current user profile
+async function getProfile(req, res) {
   try {
     const userId = req.user.userId;
-
-    const connection = await db.getConnection();
-
-    try {
-      const [users] = await connection.execute(
-        'SELECT id, username, email, full_name, phone, photo_url, created_at FROM users WHERE id = ?',
-        [userId]
-      );
-
-      if (users.length === 0) {
-        return sendError(res, 'User not found', 404);
-      }
-
-      sendSuccess(res, users[0], 'User found');
-
-    } finally {
-      connection.release();
+    
+    const [users] = await pool.query(
+      'SELECT id, username, email, full_name, phone, photo_url, created_at FROM users WHERE id = ?',
+      [userId]
+    );
+    
+    if (users.length === 0) {
+      return error(res, 'User tidak ditemukan', 404);
     }
-
-  } catch (error) {
-    console.error('Get current user error:', error);
-    sendError(res, 'Failed to fetch user', 500);
+    
+    return success(res, 'Profil berhasil diambil', users[0]);
+    
+  } catch (err) {
+    console.error('Get profile error:', err.message);
+    return error(res, 'Terjadi kesalahan saat mengambil profil', 500);
   }
-};
+}
 
 // Update user profile
-exports.updateProfile = async (req, res) => {
+async function updateProfile(req, res) {
   try {
     const userId = req.user.userId;
     const { full_name, phone, photo_url } = req.body;
-
-    const connection = await db.getConnection();
-
-    try {
-      // Whitelist approach - only allow specific columns
-      const allowedFields = {
-        full_name: full_name !== undefined ? (full_name || null) : undefined,
-        phone: phone !== undefined ? (phone || null) : undefined,
-        photo_url: photo_url !== undefined ? (photo_url || null) : undefined,
-      };
-
-      const updates = [];
-      const values = [];
-
-      Object.entries(allowedFields).forEach(([field, value]) => {
-        if (value !== undefined) {
-          updates.push(`${field} = ?`);
-          values.push(value);
-        }
-      });
-
-      if (updates.length === 0) {
-        return sendSuccess(res, { userId }, 'Tidak ada perubahan profile');
-      }
-
-      values.push(userId);
-
-      await connection.execute(
-        `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
-        values
-      );
-
-      sendSuccess(res, { userId, full_name, phone, photo_url }, 'Profile berhasil diperbarui');
-
-    } finally {
-      connection.release();
+    
+    // Build update query
+    const updates = [];
+    const values = [];
+    
+    if (full_name !== undefined) {
+      updates.push('full_name = ?');
+      values.push(sanitizeString(full_name.trim()) || null);
     }
-
-  } catch (error) {
-    console.error('Update profile error:', error);
-    sendError(res, 'Gagal memperbarui profile', 500);
+    
+    if (phone !== undefined) {
+      updates.push('phone = ?');
+      values.push(sanitizeString(phone.trim()) || null);
+    }
+    
+    if (photo_url !== undefined) {
+      // Validate URL format
+      if (photo_url && !/^https?:\/\/.+/i.test(photo_url.trim())) {
+        return badRequest(res, 'Format URL foto tidak valid');
+      }
+      updates.push('photo_url = ?');
+      values.push(photo_url.trim() || null);
+    }
+    
+    if (updates.length === 0) {
+      return badRequest(res, 'Tidak ada data yang diubah');
+    }
+    
+    values.push(userId);
+    
+    await pool.query(
+      `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
+      values
+    );
+    
+    // Get updated profile
+    const [users] = await pool.query(
+      'SELECT id, username, email, full_name, phone, photo_url FROM users WHERE id = ?',
+      [userId]
+    );
+    
+    return success(res, 'Profil berhasil diperbarui', users[0]);
+    
+  } catch (err) {
+    console.error('Update profile error:', err.message);
+    return error(res, 'Terjadi kesalahan saat memperbarui profil', 500);
   }
-};
+}
 
-// Logout user (clear token cookie)
-exports.logout = (req, res) => {
-  res.clearCookie('token', cookieOptions);
-  sendSuccess(res, null, 'Logout successful');
+// Change password
+async function changePassword(req, res) {
+  try {
+    const userId = req.user.userId;
+    const { current_password, new_password } = req.body;
+    
+    if (!current_password || !new_password) {
+      return badRequest(res, 'Password saat ini dan password baru diperlukan');
+    }
+    
+    // Validate new password
+    const errors = validatePassword(new_password);
+    if (errors.length > 0) {
+      return validationError(res, errors);
+    }
+    
+    // Get current password hash
+    const [users] = await pool.query(
+      'SELECT password_hash FROM users WHERE id = ?',
+      [userId]
+    );
+    
+    if (users.length === 0) {
+      return error(res, 'User tidak ditemukan', 404);
+    }
+    
+    // Verify current password
+    const isValid = await bcrypt.compare(current_password, users[0].password_hash);
+    
+    if (!isValid) {
+      return unauthorized(res, 'Password saat ini salah');
+    }
+    
+    // Hash new password
+    const saltRounds = 12;
+    const newPasswordHash = await bcrypt.hash(new_password, saltRounds);
+    
+    // Update password
+    await pool.query(
+      'UPDATE users SET password_hash = ? WHERE id = ?',
+      [newPasswordHash, userId]
+    );
+    
+    return success(res, 'Password berhasil diubah');
+    
+  } catch (err) {
+    console.error('Change password error:', err.message);
+    return error(res, 'Terjadi kesalahan saat mengubah password', 500);
+  }
+}
+
+// Logout
+function logout(req, res) {
+  res.clearCookie('token');
+  return success(res, 'Logout berhasil');
+}
+
+module.exports = {
+  register,
+  login,
+  getProfile,
+  updateProfile,
+  changePassword,
+  logout
 };

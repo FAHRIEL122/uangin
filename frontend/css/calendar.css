@@ -1,0 +1,307 @@
+/* ============================================
+   UANGIN - Modern Calendar Styles
+   Blue & White Theme
+   ============================================ */
+
+.main-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--spacing-8) var(--spacing-6);
+}
+
+.calendar-header {
+  margin-bottom: var(--spacing-8);
+  padding: var(--spacing-6);
+  background: var(--bg-primary);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-md);
+  border: 2px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--spacing-4);
+}
+
+.calendar-header h1 {
+  margin-bottom: var(--spacing-2);
+  font-size: var(--font-size-3xl);
+}
+
+.calendar-header p {
+  color: var(--text-secondary);
+  margin: 0;
+  font-weight: 500;
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+}
+
+.calendar-nav h2 {
+  margin: 0;
+  color: var(--primary-600);
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  min-width: 200px;
+  text-align: center;
+}
+
+/* Calendar Grid */
+.calendar-container {
+  background-color: var(--bg-primary);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-6);
+  margin-bottom: var(--spacing-6);
+  border: 2px solid var(--border-light);
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--spacing-2);
+}
+
+.calendar-day-header {
+  text-align: center;
+  font-weight: 700;
+  color: var(--primary-600);
+  padding: var(--spacing-3);
+  font-size: var(--font-size-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.calendar-day {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: var(--spacing-2);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  min-height: 90px;
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+  border: 2px solid var(--border-color);
+  position: relative;
+  overflow: hidden;
+}
+
+.calendar-day::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: var(--gradient-primary);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.calendar-day:hover {
+  background: linear-gradient(135deg, var(--primary-50) 0%, var(--bg-primary) 100%);
+  transform: scale(1.05);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-300);
+}
+
+.calendar-day:hover::before {
+  opacity: 1;
+}
+
+.calendar-day.empty {
+  background: transparent;
+  cursor: default;
+  border-color: transparent;
+}
+
+.calendar-day.empty:hover {
+  background: transparent;
+  transform: none;
+  box-shadow: none;
+}
+
+.calendar-day.empty::before {
+  display: none;
+}
+
+.calendar-day.today {
+  background: var(--gradient-primary);
+  color: white;
+  font-weight: 700;
+  border-color: var(--primary-600);
+  box-shadow: var(--shadow-lg);
+}
+
+.calendar-day.today .day-number {
+  color: white;
+}
+
+.calendar-day.has-transactions {
+  border-color: var(--primary-400);
+  border-width: 3px;
+}
+
+.day-number {
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--spacing-1);
+  color: var(--text-primary);
+}
+
+.day-indicators {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: auto;
+}
+
+.day-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.day-dot.income {
+  background: linear-gradient(135deg, var(--success), #34d399);
+}
+
+.day-dot.expense {
+  background: linear-gradient(135deg, var(--danger), #f87171);
+}
+
+/* Transaction Details */
+.transaction-details {
+  margin-top: var(--spacing-6);
+  border: 2px solid var(--border-light);
+}
+
+.transaction-details .card-header {
+  padding: var(--spacing-6);
+  margin-bottom: 0;
+  border-bottom: 2px solid var(--border-light);
+}
+
+.transaction-details h3 {
+  margin: 0;
+  color: var(--primary-600);
+  font-size: var(--font-size-xl);
+}
+
+.day-transaction {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-5);
+  border-bottom: 1px solid var(--border-light);
+  transition: all var(--transition-fast);
+}
+
+.day-transaction:hover {
+  background: var(--primary-50);
+}
+
+.day-transaction:last-child {
+  border-bottom: none;
+}
+
+.transaction-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  flex: 1;
+}
+
+.transaction-icon {
+  font-size: var(--font-size-2xl);
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+}
+
+.transaction-details-text {
+  flex: 1;
+}
+
+.transaction-description {
+  font-weight: 600;
+  margin-bottom: var(--spacing-1);
+  color: var(--text-primary);
+}
+
+.transaction-category {
+  font-size: var(--font-size-sm);
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.transaction-amount {
+  font-weight: 800;
+  font-size: var(--font-size-lg);
+}
+
+.transaction-amount.income {
+  color: var(--success);
+}
+
+.transaction-amount.expense {
+  color: var(--danger);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .main-content {
+    padding: var(--spacing-4) var(--spacing-4);
+  }
+  
+  .calendar-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .calendar-nav {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .calendar-nav h2 {
+    font-size: var(--font-size-lg);
+    min-width: auto;
+  }
+  
+  .calendar-day {
+    min-height: 70px;
+    padding: var(--spacing-1);
+  }
+  
+  .day-number {
+    font-size: var(--font-size-xs);
+  }
+  
+  .day-dot {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .day-transaction {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-3);
+  }
+  
+  .transaction-amount {
+    align-self: flex-end;
+  }
+}

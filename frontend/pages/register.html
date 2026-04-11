@@ -3,79 +3,105 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Daftar - UANGIN Buku Kas</title>
-  <link rel="stylesheet" href="../css/style.css">
-  <link rel="stylesheet" href="../css/auth.css">
+  <title>Register - UANGIN</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/auth.css">
 </head>
 <body>
   <div class="auth-container">
     <div class="auth-card">
       <div class="auth-header">
-        <h1 id="appLogo" aria-label="UANGIN">📊 UANGIN</h1>
-        <p>Daftar Akun Baru</p>
+        <h1>💰 UANGIN</h1>
+        <p>Buat akun baru dan mulai kelola keuangan Anda</p>
       </div>
-
-      <div id="alertContainer"></div>
-
-      <form id="registerForm">
+      
+      <form id="registerForm" class="auth-form">
         <div class="form-group">
-          <label for="username">Username</label>
+          <label for="username" class="form-label">👤 Username</label>
           <input 
             type="text" 
             id="username" 
             name="username" 
-            placeholder="4-20 karakter, alphanumeric"
+            class="form-input" 
+            placeholder="4-20 karakter, huruf dan angka"
             required
+            autocomplete="username"
           >
-          <small class="text-muted">Username harus 4-20 karakter alphanumeric</small>
+          <div class="form-help">4-20 karakter, hanya huruf, angka, dan underscore</div>
+          <div class="form-error" id="usernameError"></div>
         </div>
-
+        
         <div class="form-group">
-          <label for="email">Email</label>
+          <label for="email" class="form-label">📧 Email</label>
           <input 
             type="email" 
             id="email" 
             name="email" 
+            class="form-input" 
             placeholder="contoh@email.com"
             required
+            autocomplete="email"
+          >
+          <div class="form-error" id="emailError"></div>
+        </div>
+        
+        <div class="form-group">
+          <label for="full_name" class="form-label">Nama Lengkap <span style="color: var(--text-tertiary);">(opsional)</span></label>
+          <input 
+            type="text" 
+            id="full_name" 
+            name="full_name" 
+            class="form-input" 
+            placeholder="Masukkan nama lengkap"
+            autocomplete="name"
           >
         </div>
-
+        
         <div class="form-group">
-          <label for="password">Password</label>
+          <label for="password" class="form-label">🔒 Password</label>
           <input 
             type="password" 
             id="password" 
             name="password" 
-            placeholder="Minimal 6 karakter"
+            class="form-input" 
+            placeholder="Min. 8 karakter"
             required
+            autocomplete="new-password"
           >
-          <small class="text-muted">Password minimal 6 karakter</small>
+          <div class="form-help">Minimal 8 karakter, huruf besar, huruf kecil, dan angka</div>
+          <div class="form-error" id="passwordError"></div>
         </div>
-
+        
         <div class="form-group">
-          <label for="fullName">Nama Lengkap (Opsional)</label>
+          <label for="confirmPassword" class="form-label">🔒 Konfirmasi Password</label>
           <input 
-            type="text" 
-            id="fullName" 
-            name="full_name" 
-            placeholder="Nama Anda"
+            type="password" 
+            id="confirmPassword" 
+            name="confirmPassword" 
+            class="form-input" 
+            placeholder="Ulangi password"
+            required
+            autocomplete="new-password"
           >
+          <div class="form-error" id="confirmPasswordError"></div>
         </div>
-
+        
         <button type="submit" class="btn btn-primary btn-block btn-lg" id="registerBtn">
-          Daftar
+          🎉 Daftar Sekarang
         </button>
+        
+        <div class="form-error" id="generalError"></div>
       </form>
-
+      
       <div class="auth-footer">
-        <p>Sudah punya akun? <a href="/login">Masuk di sini</a></p>
-        <p><small>Versi 1.0.0</small></p>
+        <p>Sudah punya akun? <a href="/login">Login di sini</a></p>
       </div>
     </div>
   </div>
-
-  <script src="../js/utils.js"></script>
-  <script src="../js/auth.js"></script>
+  
+  <script src="/js/utils.js"></script>
+  <script src="/js/auth.js"></script>
 </body>
 </html>

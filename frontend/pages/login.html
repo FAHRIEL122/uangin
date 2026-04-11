@@ -3,56 +3,63 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login - UANGIN Buku Kas</title>
-  <link rel="stylesheet" href="../css/style.css">
-  <link rel="stylesheet" href="../css/auth.css">
+  <title>Login - UANGIN</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/auth.css">
 </head>
 <body>
   <div class="auth-container">
     <div class="auth-card">
       <div class="auth-header">
-        <h1 id="appLogo" aria-label="UANGIN">📊 UANGIN</h1>
-        <p>Buku Kas Pribadi</p>
+        <h1>💰 UANGIN</h1>
+        <p>Kelola keuangan Anda dengan mudah dan modern</p>
       </div>
-
-      <div id="alertContainer"></div>
-
-      <form id="loginForm">
+      
+      <form id="loginForm" class="auth-form">
         <div class="form-group">
-          <label for="username">Username</label>
+          <label for="username" class="form-label">👤 Username</label>
           <input 
             type="text" 
             id="username" 
             name="username" 
-            placeholder="Masukkan username Anda"
+            class="form-input" 
+            placeholder="Masukkan username"
             required
+            autocomplete="username"
           >
+          <div class="form-error" id="usernameError"></div>
         </div>
-
+        
         <div class="form-group">
-          <label for="password">Password</label>
+          <label for="password" class="form-label">🔒 Password</label>
           <input 
             type="password" 
             id="password" 
             name="password" 
-            placeholder="Masukkan password Anda"
+            class="form-input" 
+            placeholder="Masukkan password"
             required
+            autocomplete="current-password"
           >
+          <div class="form-error" id="passwordError"></div>
         </div>
-
+        
         <button type="submit" class="btn btn-primary btn-block btn-lg" id="loginBtn">
-          Masuk
+          🚀 Login
         </button>
+        
+        <div class="form-error" id="generalError"></div>
       </form>
-
+      
       <div class="auth-footer">
-        <p>Belum punya akun? <a href="/register">Daftar di sini</a></p>
-        <p><small>Versi 1.0.0</small></p>
+        <p>Belum punya akun? <a href="/register">Daftar sekarang</a></p>
       </div>
     </div>
   </div>
-
-  <script src="../js/utils.js"></script>
-  <script src="../js/auth.js"></script>
+  
+  <script src="/js/utils.js"></script>
+  <script src="/js/auth.js"></script>
 </body>
 </html>

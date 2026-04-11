@@ -1,44 +1,68 @@
-// Authentication Middleware
 const { verifyToken } = require('../utils/jwtHelper');
-const { sendError } = require('../utils/response');
+const { unauthorized } = require('../utils/response');
 
-const authenticateToken = (req, res, next) => {
-  // Get token from Authorization header or cookie (safer for browsers)
-  const authHeader = req.headers['authorization'];
-  const tokenFromHeader = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
-  const tokenFromCookie = req.cookies && req.cookies.token;
-  const token = tokenFromHeader || tokenFromCookie;
-
+// Authentication middleware
+function authenticate(req, res, next) {
+  let token = null;
+  
+  // Get token from Authorization header
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring(7);
+  }
+  
+  // Get token from cookie
+  if (!token && req.cookies && req.cookies.token) {
+    token = req.cookies.token;
+  }
+  
   if (!token) {
-    return sendError(res, 'Access token required', 401);
+    return unauthorized(res, 'Authentication required. Please login.');
   }
-
+  
+  // Verify token
   const decoded = verifyToken(token);
+  
   if (!decoded) {
-    return sendError(res, 'Invalid or expired token', 401);
+    return unauthorized(res, 'Invalid or expired token. Please login again.');
   }
-
-  req.user = decoded;
+  
+  // Attach user info to request
+  req.user = {
+    userId: decoded.userId,
+    username: decoded.username
+  };
+  
   next();
-};
+}
 
-const optionalAuthToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const tokenFromHeader = authHeader && authHeader.split(' ')[1];
-  const tokenFromCookie = req.cookies && req.cookies.token;
-  const token = tokenFromHeader || tokenFromCookie;
-
+// Optional authentication (doesn't block if no token)
+function optionalAuth(req, res, next) {
+  let token = null;
+  
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring(7);
+  }
+  
+  if (!token && req.cookies && req.cookies.token) {
+    token = req.cookies.token;
+  }
+  
   if (token) {
     const decoded = verifyToken(token);
     if (decoded) {
-      req.user = decoded;
+      req.user = {
+        userId: decoded.userId,
+        username: decoded.username
+      };
     }
   }
-
+  
   next();
-};
+}
 
 module.exports = {
-  authenticateToken,
-  optionalAuthToken,
+  authenticate,
+  optionalAuth
 };
