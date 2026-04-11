@@ -274,27 +274,6 @@ CREATE INDEX IF NOT EXISTS idx_transaction_date ON transactions(transaction_date
 CREATE INDEX IF NOT EXISTS idx_transaction_user_type_date ON transactions(user_id, type, transaction_date);
 
 -- ============================================
--- INITIAL DATA: Default Categories
--- (Will be inserted per user on registration)
--- ============================================
-
--- Income Categories
-INSERT INTO categories (user_id, name, type, icon, color) VALUES
-(1, 'Gaji', 'income', '💰', '#10b981'),
-(1, 'Freelance', 'income', '💼', '#3b82f6'),
-(1, 'Investasi', 'income', '📈', '#8b5cf6'),
-(1, 'Lainnya', 'income', '💵', '#6b7280');
-
--- Expense Categories
-INSERT INTO categories (user_id, name, type, icon, color) VALUES
-(1, 'Makanan & Minuman', 'expense', '🍔', '#ef4444'),
-(1, 'Transportasi', 'expense', '🚗', '#f59e0b'),
-(1, 'Belanja', 'expense', '🛍️', '#ec4899'),
-(1, 'Tagihan & Utilitas', 'expense', '📱', '#6366f1'),
-(1, 'Hiburan', 'expense', '🎮', '#14b8a6'),
-(1, 'Lainnya', 'expense', '📦', '#6b7280');
-
--- ============================================
 -- Database initialization complete!
 -- ============================================
 SELECT '✅ Database buku_kas v2.0.0 created successfully!' AS message;
