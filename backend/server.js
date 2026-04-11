@@ -8,6 +8,7 @@ const path = require('path');
 const { pool, testConnection, initializeSchema } = require('./config/database');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { processRecurringTransactions } = require('./utils/recurringProcessor');
+const { autoSetup } = require('../scripts/auto-setup-db');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -173,14 +174,17 @@ app.use(errorHandler);
 
 async function startServer() {
   try {
+    // Auto-setup database if needed
+    await autoSetup();
+
     // Test database connection
     const dbConnected = await testConnection();
-    
+
     if (!dbConnected) {
       console.error('❌ Failed to connect to database. Exiting...');
       process.exit(1);
     }
-    
+
     // Initialize database schema
     await initializeSchema();
     
