@@ -5,181 +5,59 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Daftar - UANGIN</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="/css/style.css">
-  <link rel="stylesheet" href="/css/auth.css">
 </head>
 <body class="auth-page">
-  <!-- Background Decorations -->
-  <div class="auth-bg-decoration"></div>
-  <div class="auth-bg-decoration"></div>
-
-  <!-- Auth Container -->
-  <div class="auth-container">
-    <!-- Brand Header -->
+  <div class="auth-container" style="max-width: 440px;">
     <div class="auth-brand-header">
       <div class="auth-brand-icon">💰</div>
       <h1 class="auth-brand-title">UANGIN</h1>
-      <p class="auth-brand-subtitle">Mulai Kelola Keuangan Anda</p>
+      <p class="auth-brand-subtitle">Buat Akun Baru</p>
     </div>
-
-    <!-- Register Card -->
     <div class="auth-card">
-      <div class="auth-card-header">
-        <h2 class="auth-title">Buat Akun Baru 🚀</h2>
-        <p class="auth-subtitle">Isi data di bawah untuk membuat akun</p>
-      </div>
-
       <form id="registerForm" class="auth-form">
-        <!-- Full Name -->
         <div class="form-group">
-          <label class="form-label" for="fullName">
-            Nama Lengkap <span class="required">*</span>
-          </label>
-          <input 
-            type="text" 
-            id="fullName" 
-            name="fullName"
-            class="form-input" 
-            placeholder="Masukkan nama lengkap"
-            required
-            autocomplete="name"
-          >
+          <label class="form-label" for="fullName">Nama Lengkap <span class="required">*</span></label>
+          <input type="text" id="fullName" class="form-input" placeholder="Nama lengkap" required>
         </div>
-
-        <!-- Username -->
         <div class="form-group">
-          <label class="form-label" for="username">
-            Username <span class="required">*</span>
-          </label>
-          <input 
-            type="text" 
-            id="username" 
-            name="username"
-            class="form-input" 
-            placeholder="Pilih username (min. 4 karakter)"
-            required
-            minlength="4"
-            autocomplete="username"
-          >
-          <p class="form-help">Username harus unik dan minimal 4 karakter</p>
+          <label class="form-label" for="username">Username <span class="required">*</span></label>
+          <input type="text" id="username" class="form-input" placeholder="Min. 4 karakter" required minlength="4">
         </div>
-
-        <!-- Email -->
         <div class="form-group">
-          <label class="form-label" for="email">
-            Email <span class="required">*</span>
-          </label>
-          <input 
-            type="email" 
-            id="email" 
-            name="email"
-            class="form-input" 
-            placeholder="nama@email.com"
-            required
-            autocomplete="email"
-          >
+          <label class="form-label" for="email">Email <span class="required">*</span></label>
+          <input type="email" id="email" class="form-input" placeholder="nama@email.com" required>
         </div>
-
-        <!-- Password -->
         <div class="form-group">
-          <label class="form-label" for="password">
-            Password <span class="required">*</span>
-          </label>
+          <label class="form-label" for="password">Password <span class="required">*</span></label>
           <div class="password-input-wrapper">
-            <input 
-              type="password" 
-              id="password" 
-              name="password"
-              class="form-input" 
-              placeholder="Minimal 8 karakter"
-              required
-              minlength="8"
-              autocomplete="new-password"
-            >
-            <button type="button" class="password-toggle" onclick="togglePasswordVisibility('password')">
-              👁️
-            </button>
-          </div>
-          <p class="form-help">Gunakan kombinasi huruf besar, kecil, dan angka</p>
-        </div>
-
-        <!-- Confirm Password -->
-        <div class="form-group">
-          <label class="form-label" for="confirmPassword">
-            Konfirmasi Password <span class="required">*</span>
-          </label>
-          <div class="password-input-wrapper">
-            <input 
-              type="password" 
-              id="confirmPassword" 
-              name="confirmPassword"
-              class="form-input" 
-              placeholder="Ulangi password"
-              required
-              autocomplete="new-password"
-            >
-            <button type="button" class="password-toggle" onclick="togglePasswordVisibility('confirmPassword')">
-              👁️
-            </button>
+            <input type="password" id="password" class="form-input" placeholder="Min. 8 karakter" required minlength="8">
+            <button type="button" class="password-toggle" onclick="togglePasswordVisibility('password')">👁️</button>
           </div>
         </div>
-
-        <!-- Error Alert -->
-        <div id="registerError" class="alert alert-danger hidden" role="alert">
+        <div class="form-group">
+          <label class="form-label" for="confirmPassword">Konfirmasi Password <span class="required">*</span></label>
+          <div class="password-input-wrapper">
+            <input type="password" id="confirmPassword" class="form-input" placeholder="Ulangi password" required>
+            <button type="button" class="password-toggle" onclick="togglePasswordVisibility('confirmPassword')">👁️</button>
+          </div>
+        </div>
+        <div id="registerError" class="alert alert-danger hidden">
           <span class="alert-icon">❌</span>
-          <div class="alert-content">
-            <div class="alert-message" id="registerErrorMessage"></div>
-          </div>
+          <div><div class="alert-message" id="registerErrorMessage"></div></div>
         </div>
-
-        <!-- Success Alert -->
-        <div id="registerSuccess" class="alert alert-success hidden" role="alert">
+        <div id="registerSuccess" class="alert alert-success hidden">
           <span class="alert-icon">✅</span>
-          <div class="alert-content">
-            <div class="alert-message" id="registerSuccessMessage"></div>
-          </div>
+          <div><div class="alert-message" id="registerSuccessMessage"></div></div>
         </div>
-
-        <!-- Submit Button -->
-        <button type="submit" class="btn btn-primary btn-lg btn-block" id="registerBtn">
-          <span>🚀</span> Daftar Sekarang
-        </button>
+        <button type="submit" class="btn btn-primary btn-lg btn-block" id="registerBtn">Daftar</button>
       </form>
-
-      <!-- Footer Links -->
       <div class="auth-footer">
-        <p>Sudah punya akun? <a href="/login" class="auth-link">Masuk di sini</a></p>
-      </div>
-    </div>
-
-    <!-- Benefits Section -->
-    <div class="auth-features">
-      <div class="auth-feature">
-        <div class="auth-feature-icon">🔒</div>
-        <div class="auth-feature-text">
-          <h4>Aman & Privat</h4>
-          <p>Data Anda dilindungi dengan enkripsi modern</p>
-        </div>
-      </div>
-      <div class="auth-feature">
-        <div class="auth-feature-icon">⚡</div>
-        <div class="auth-feature-text">
-          <h4>Gratis Selamanya</h4>
-          <p>Tidak ada biaya tersembunyi atau langganan</p>
-        </div>
-      </div>
-      <div class="auth-feature">
-        <div class="auth-feature-icon">🎯</div>
-        <div class="auth-feature-text">
-          <h4>Mudah Digunakan</h4>
-          <p>Antarmuka intuitif yang ramah pengguna</p>
-        </div>
+        Sudah punya akun? <a href="/login" class="auth-link">Masuk</a>
       </div>
     </div>
   </div>
-
   <script src="/js/auth.js"></script>
 </body>
 </html>

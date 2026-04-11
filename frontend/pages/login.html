@@ -5,124 +5,50 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login - UANGIN</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="/css/style.css">
-  <link rel="stylesheet" href="/css/auth.css">
 </head>
 <body class="auth-page">
-  <!-- Background Decorations -->
-  <div class="auth-bg-decoration"></div>
-  <div class="auth-bg-decoration"></div>
-
-  <!-- Auth Container -->
   <div class="auth-container">
-    <!-- Brand Header -->
     <div class="auth-brand-header">
       <div class="auth-brand-icon">💰</div>
       <h1 class="auth-brand-title">UANGIN</h1>
-      <p class="auth-brand-subtitle">Kelola Keuangan Anda dengan Bijak</p>
+      <p class="auth-brand-subtitle">Kelola Keuangan Anda</p>
     </div>
-
-    <!-- Login Card -->
     <div class="auth-card">
       <div class="auth-card-header">
-        <h2 class="auth-title">Selamat Datang! 👋</h2>
-        <p class="auth-subtitle">Masuk ke akun Anda untuk melanjutkan</p>
+        <h2 class="auth-title">Masuk</h2>
+        <p class="auth-subtitle">Masukkan akun Anda untuk melanjutkan</p>
       </div>
-
       <form id="loginForm" class="auth-form">
-        <!-- Username/Email -->
         <div class="form-group">
-          <label class="form-label" for="username">
-            Username atau Email <span class="required">*</span>
-          </label>
-          <input 
-            type="text" 
-            id="username" 
-            name="username"
-            class="form-input" 
-            placeholder="Masukkan username atau email"
-            required
-            autocomplete="username"
-          >
+          <label class="form-label" for="username">Username atau Email <span class="required">*</span></label>
+          <input type="text" id="username" class="form-input" placeholder="Masukkan username" required autocomplete="username">
         </div>
-
-        <!-- Password -->
         <div class="form-group">
-          <label class="form-label" for="password">
-            Password <span class="required">*</span>
-          </label>
+          <label class="form-label" for="password">Password <span class="required">*</span></label>
           <div class="password-input-wrapper">
-            <input 
-              type="password" 
-              id="password" 
-              name="password"
-              class="form-input" 
-              placeholder="Masukkan password"
-              required
-              autocomplete="current-password"
-            >
-            <button type="button" class="password-toggle" onclick="togglePasswordVisibility('password')">
-              👁️
-            </button>
+            <input type="password" id="password" class="form-input" placeholder="Masukkan password" required autocomplete="current-password">
+            <button type="button" class="password-toggle" onclick="togglePasswordVisibility('password')">👁️</button>
           </div>
         </div>
-
-        <!-- Remember Me -->
         <div class="form-group">
           <label class="form-check">
-            <input type="checkbox" id="rememberMe" name="remember">
+            <input type="checkbox" id="rememberMe">
             <span>Ingat saya</span>
           </label>
         </div>
-
-        <!-- Error Alert -->
-        <div id="loginError" class="alert alert-danger hidden" role="alert">
+        <div id="loginError" class="alert alert-danger hidden">
           <span class="alert-icon">❌</span>
-          <div class="alert-content">
-            <div class="alert-message" id="loginErrorMessage"></div>
-          </div>
+          <div><div class="alert-message" id="loginErrorMessage"></div></div>
         </div>
-
-        <!-- Submit Button -->
-        <button type="submit" class="btn btn-primary btn-lg btn-block" id="loginBtn">
-          <span>🔐</span> Masuk
-        </button>
+        <button type="submit" class="btn btn-primary btn-lg btn-block" id="loginBtn">Masuk</button>
       </form>
-
-      <!-- Footer Links -->
       <div class="auth-footer">
-        <p>Belum punya akun? <a href="/register" class="auth-link">Daftar Sekarang</a></p>
-      </div>
-    </div>
-
-    <!-- Features Section -->
-    <div class="auth-features">
-      <div class="auth-feature">
-        <div class="auth-feature-icon">📊</div>
-        <div class="auth-feature-text">
-          <h4>Dashboard Interaktif</h4>
-          <p>Pantau keuangan dengan grafik yang mudah dipahami</p>
-        </div>
-      </div>
-      <div class="auth-feature">
-        <div class="auth-feature-icon">💵</div>
-        <div class="auth-feature-text">
-          <h4>Transaksi Cepat</h4>
-          <p>Catat pendapatan dan pengeluaran dalam satu klik</p>
-        </div>
-      </div>
-      <div class="auth-feature">
-        <div class="auth-feature-icon">📈</div>
-        <div class="auth-feature-text">
-          <h4>Laporan Lengkap</h4>
-          <p>Analisis detail kebiasaan keuangan Anda</p>
-        </div>
+        Belum punya akun? <a href="/register" class="auth-link">Daftar</a>
       </div>
     </div>
   </div>
-
   <script src="/js/auth.js"></script>
 </body>
 </html>
