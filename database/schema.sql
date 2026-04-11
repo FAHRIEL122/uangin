@@ -55,35 +55,7 @@ CREATE TABLE categories (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
--- 3. TRANSACTIONS TABLE
--- ============================================
-CREATE TABLE transactions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    category_id INT DEFAULT NULL,
-    recurring_id INT DEFAULT NULL,
-    type ENUM('income', 'expense') NOT NULL,
-    amount DECIMAL(15, 2) NOT NULL,
-    description TEXT DEFAULT NULL,
-    transaction_date DATE NOT NULL,
-    transaction_time TIME DEFAULT NULL,
-    attachment_url VARCHAR(255) DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    
-    CHECK (amount > 0),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
-    FOREIGN KEY (recurring_id) REFERENCES recurring_transactions(id) ON DELETE SET NULL,
-    INDEX idx_user_date (user_id, transaction_date),
-    INDEX idx_user_type (user_id, type),
-    INDEX idx_category (category_id),
-    INDEX idx_recurring (recurring_id),
-    INDEX idx_transaction_date (transaction_date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================
--- 4. RECURRING TRANSACTIONS TABLE
+-- 3. RECURRING TRANSACTIONS TABLE
 -- ============================================
 CREATE TABLE recurring_transactions (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -99,14 +71,38 @@ CREATE TABLE recurring_transactions (
     last_processed DATE DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    
-    CHECK (amount > 0),
-    CHECK (day_of_month BETWEEN 1 AND 31),
-    CHECK (end_date IS NULL OR end_date >= start_date),
+
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
     INDEX idx_user_active (user_id, is_active),
     INDEX idx_next_process (is_active, last_processed)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- 4. TRANSACTIONS TABLE
+-- ============================================
+CREATE TABLE transactions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    category_id INT DEFAULT NULL,
+    recurring_id INT DEFAULT NULL,
+    type ENUM('income', 'expense') NOT NULL,
+    amount DECIMAL(15, 2) NOT NULL,
+    description TEXT DEFAULT NULL,
+    transaction_date DATE NOT NULL,
+    transaction_time TIME DEFAULT NULL,
+    attachment_url VARCHAR(255) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
+    FOREIGN KEY (recurring_id) REFERENCES recurring_transactions(id) ON DELETE SET NULL,
+    INDEX idx_user_date (user_id, transaction_date),
+    INDEX idx_user_type (user_id, type),
+    INDEX idx_category (category_id),
+    INDEX idx_recurring (recurring_id),
+    INDEX idx_transaction_date (transaction_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
@@ -124,11 +120,7 @@ CREATE TABLE budgets (
     year INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    
-    CHECK (limit_amount > 0),
-    CHECK (spent_amount >= 0),
-    CHECK (month BETWEEN 1 AND 12),
-    CHECK (year BETWEEN 2000 AND 2100),
+
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
     UNIQUE KEY unique_user_category_month (user_id, category_id, month, year),
