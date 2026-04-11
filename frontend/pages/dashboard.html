@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard - UANGIN</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/css/dashboard.css">
@@ -15,43 +16,36 @@
   <nav class="navbar">
     <div class="navbar-container">
       <a href="/dashboard" class="navbar-brand">
-        <span class="brand-icon">💰</span>
-        <span class="brand-text">UANGIN</span>
+        <div class="navbar-brand-icon">💰</div>
+        <span>UANGIN</span>
       </a>
-      <button class="navbar-toggle" id="navbarToggle">
+      <button class="hamburger-toggle" id="navbarToggle">
         <span></span>
         <span></span>
         <span></span>
       </button>
       <div class="navbar-menu" id="navbarMenu">
         <a href="/dashboard" class="navbar-item active">
-          <span class="item-icon">📊</span>
-          <span>Dashboard</span>
+          <span>📊</span> Dashboard
         </a>
-        <a href="/pendapatan" class="navbar-item income">
-          <span class="item-icon">➕</span>
-          <span>Pendapatan</span>
-        </a>
-        <a href="/pengeluaran" class="navbar-item expense">
-          <span class="item-icon">➖</span>
-          <span>Pengeluaran</span>
-        </a>
+        <button class="navbar-item income" onclick="openTransactionModal('income')">
+          <span>📈</span> Pendapatan
+        </button>
+        <button class="navbar-item expense" onclick="openTransactionModal('expense')">
+          <span>📉</span> Pengeluaran
+        </button>
         <a href="/laporan" class="navbar-item">
-          <span class="item-icon">📈</span>
-          <span>Laporan</span>
+          <span>📈</span> Laporan
         </a>
         <a href="/kalender" class="navbar-item">
-          <span class="item-icon">📅</span>
-          <span>Kalender</span>
+          <span>📅</span> Kalender
         </a>
         <a href="/profil" class="navbar-item">
-          <span class="item-icon">👤</span>
-          <span>Profil</span>
+          <span>👤</span> Profil
         </a>
         <div class="navbar-divider"></div>
         <button class="navbar-item logout" id="logoutBtn">
-          <span class="item-icon">🚪</span>
-          <span>Logout</span>
+          <span>🚪</span> Logout
         </button>
         <button class="theme-toggle" id="themeToggle" title="Toggle Dark Mode">🌙</button>
       </div>
@@ -62,75 +56,81 @@
   <main class="main-content">
     <!-- Welcome Section -->
     <section class="welcome-section animate-slide-up">
-      <div class="welcome-info">
-        <h1 id="welcomeMessage">Selamat Datang! 👋</h1>
-        <p class="current-date" id="currentDate"></p>
-      </div>
-      <div class="month-selector">
-        <select id="monthSelect" class="form-select">
-          <option value="1">Januari</option>
-          <option value="2">Februari</option>
-          <option value="3">Maret</option>
-          <option value="4">April</option>
-          <option value="5">Mei</option>
-          <option value="6">Juni</option>
-          <option value="7">Juli</option>
-          <option value="8">Agustus</option>
-          <option value="9">September</option>
-          <option value="10">Oktober</option>
-          <option value="11">November</option>
-          <option value="12">Desember</option>
-        </select>
-        <select id="yearSelect" class="form-select">
-          <!-- Years will be populated by JS -->
-        </select>
+      <div class="welcome-content">
+        <div>
+          <h1 class="heading-lg" id="welcomeMessage">Selamat Datang! 👋</h1>
+          <p class="text-body" id="currentDate"></p>
+        </div>
+        <div class="date-filters">
+          <select id="monthSelect" class="form-select">
+            <option value="1">Januari</option>
+            <option value="2">Februari</option>
+            <option value="3">Maret</option>
+            <option value="4">April</option>
+            <option value="5">Mei</option>
+            <option value="6">Juni</option>
+            <option value="7">Juli</option>
+            <option value="8">Agustus</option>
+            <option value="9">September</option>
+            <option value="10">Oktober</option>
+            <option value="11">November</option>
+            <option value="12">Desember</option>
+          </select>
+          <select id="yearSelect" class="form-select"></select>
+        </div>
       </div>
     </section>
 
     <!-- Summary Cards -->
-    <section class="summary-cards">
-      <div class="stat-card income animate-slide-up">
-        <div class="stat-icon">📈</div>
-        <div class="stat-label">Total Pendapatan</div>
-        <div class="stat-value" id="totalIncome">Rp 0</div>
-        <div class="stat-count" id="incomeCount">0 transaksi</div>
+    <section class="summary-grid animate-slide-up" style="animation-delay: 0.1s">
+      <div class="stat-card income">
+        <div class="stat-card-icon">📈</div>
+        <div class="stat-card-label">Total Pendapatan</div>
+        <div class="stat-card-value" id="totalIncome">Rp 0</div>
+        <div class="stat-card-trend positive" id="incomeCount">0 transaksi</div>
       </div>
-      <div class="stat-card expense animate-slide-up" style="animation-delay: 0.1s">
-        <div class="stat-icon">📉</div>
-        <div class="stat-label">Total Pengeluaran</div>
-        <div class="stat-value" id="totalExpense">Rp 0</div>
-        <div class="stat-count" id="expenseCount">0 transaksi</div>
+      <div class="stat-card expense">
+        <div class="stat-card-icon">📉</div>
+        <div class="stat-card-label">Total Pengeluaran</div>
+        <div class="stat-card-value" id="totalExpense">Rp 0</div>
+        <div class="stat-card-trend negative" id="expenseCount">0 transaksi</div>
       </div>
-      <div class="stat-card balance animate-slide-up" style="animation-delay: 0.2s">
-        <div class="stat-icon">💎</div>
-        <div class="stat-label">Saldo Bersih</div>
-        <div class="stat-value" id="netBalance">Rp 0</div>
-        <div class="stat-count" id="balanceStatus">Seimbang</div>
+      <div class="stat-card balance">
+        <div class="stat-card-icon">💎</div>
+        <div class="stat-card-label">Saldo Bersih</div>
+        <div class="stat-card-value" id="netBalance">Rp 0</div>
+        <div class="stat-card-trend" id="balanceStatus">Seimbang</div>
       </div>
     </section>
 
     <!-- Chart and Quick Actions -->
-    <section class="dashboard-grid">
-      <div class="card chart-card animate-slide-up" style="animation-delay: 0.3s">
+    <section class="dashboard-grid animate-slide-up" style="animation-delay: 0.2s">
+      <div class="card">
         <div class="card-header">
-          <h3>📊 Distribusi Keuangan</h3>
+          <div>
+            <h3 class="card-title">📊 Distribusi Keuangan</h3>
+            <p class="card-subtitle">Perbandingan pendapatan dan pengeluaran</p>
+          </div>
         </div>
         <div class="chart-container">
           <canvas id="financeChart"></canvas>
         </div>
       </div>
 
-      <div class="card quick-actions animate-slide-up" style="animation-delay: 0.4s">
+      <div class="card">
         <div class="card-header">
-          <h3>⚡ Aksi Cepat</h3>
+          <div>
+            <h3 class="card-title">⚡ Aksi Cepat</h3>
+            <p class="card-subtitle">Akses fitur utama dengan cepat</p>
+          </div>
         </div>
-        <div class="action-buttons">
-          <a href="/pendapatan" class="btn btn-secondary btn-block">
+        <div class="quick-actions">
+          <button class="btn btn-success btn-block" onclick="openTransactionModal('income')">
             <span>➕</span> Tambah Pendapatan
-          </a>
-          <a href="/pengeluaran" class="btn btn-danger btn-block">
+          </button>
+          <button class="btn btn-danger btn-block" onclick="openTransactionModal('expense')">
             <span>➖</span> Tambah Pengeluaran
-          </a>
+          </button>
           <button class="btn btn-warning btn-block" id="editLastBtn">
             <span>✏️</span> Edit Transaksi Terakhir
           </button>
@@ -142,30 +142,27 @@
     </section>
 
     <!-- Transaction List -->
-    <section class="card transaction-list-card animate-slide-up" style="animation-delay: 0.5s">
+    <section class="card animate-slide-up" style="animation-delay: 0.3s">
       <div class="card-header">
-        <h3>📋 Riwayat Transaksi</h3>
+        <div>
+          <h3 class="card-title">📋 Riwayat Transaksi</h3>
+          <p class="card-subtitle">Daftar semua transaksi bulan ini</p>
+        </div>
       </div>
-      
-      <div class="transaction-filters">
-        <div class="filter-group">
-          <input type="text" id="searchInput" class="form-input" placeholder="🔍 Cari transaksi...">
-        </div>
-        <div class="filter-group">
-          <select id="categoryFilter" class="form-select">
-            <option value="">Semua Kategori</option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <select id="sortBy" class="form-select">
-            <option value="date">📅 Urutkan: Tanggal</option>
-            <option value="amount">💰 Urutkan: Jumlah</option>
-          </select>
-        </div>
-        <button class="btn btn-light btn-sm" id="clearFiltersBtn">🔄 Hapus Filter</button>
+
+      <div class="filter-bar">
+        <input type="text" id="searchInput" class="filter-input" placeholder="🔍 Cari transaksi...">
+        <select id="categoryFilter" class="filter-input">
+          <option value="">Semua Kategori</option>
+        </select>
+        <select id="sortBy" class="filter-input" style="max-width: 200px;">
+          <option value="date">📅 Terbaru</option>
+          <option value="amount">💰 Terbesar</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" id="clearFiltersBtn">🔄 Reset</button>
       </div>
-      
-      <div class="table-responsive">
+
+      <div class="table-container">
         <table class="table" id="transactionTable">
           <thead>
             <tr>
@@ -173,55 +170,165 @@
               <th>Deskripsi</th>
               <th>Kategori</th>
               <th>Tipe</th>
-              <th class="text-right">Jumlah</th>
-              <th class="text-center">Aksi</th>
+              <th style="text-align: right;">Jumlah</th>
+              <th style="text-align: center;">Aksi</th>
             </tr>
           </thead>
-          <tbody id="transactionBody">
-            <!-- Transactions will be loaded here -->
-          </tbody>
+          <tbody id="transactionBody"></tbody>
         </table>
       </div>
-      
+
       <div id="emptyState" class="empty-state hidden">
-        <div class="empty-icon">📭</div>
-        <h4>Belum ada transaksi</h4>
-        <p>Mulai tambahkan pendapatan atau pengeluaran Anda</p>
-        <div class="empty-actions">
-          <a href="/pendapatan" class="btn btn-secondary">+ Tambah Pendapatan</a>
-          <a href="/pengeluaran" class="btn btn-danger">- Tambah Pengeluaran</a>
+        <div class="empty-state-icon">📭</div>
+        <h3 class="empty-state-title">Belum ada transaksi</h3>
+        <p class="empty-state-text">Mulai tambahkan pendapatan atau pengeluaran Anda untuk mengelola keuangan dengan lebih baik</p>
+        <div class="flex gap-3" style="justify-content: center;">
+          <button class="btn btn-success" onclick="openTransactionModal('income')">
+            <span>➕</span> Tambah Pendapatan
+          </button>
+          <button class="btn btn-danger" onclick="openTransactionModal('expense')">
+            <span>➖</span> Tambah Pengeluaran
+          </button>
         </div>
       </div>
     </section>
   </main>
 
-  <!-- Edit Modal -->
+  <!-- Floating Action Button -->
+  <button class="fab" onclick="openTransactionModal()" title="Tambah Transaksi">
+    ➕
+  </button>
+
+  <!-- Universal Transaction Modal -->
+  <div class="modal-backdrop" id="transactionModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title">
+          <span id="modalIcon">💵</span>
+          <span id="modalTitle">Tambah Transaksi</span>
+        </h3>
+        <button class="modal-close" onclick="closeTransactionModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Transaction Type Selector -->
+        <div class="transaction-type-selector" id="transactionTypeSelector">
+          <button class="transaction-type-btn income" onclick="selectTransactionType('income')">
+            <div class="transaction-type-icon">📈</div>
+            <div class="transaction-type-label">Pendapatan</div>
+          </button>
+          <button class="transaction-type-btn expense" onclick="selectTransactionType('expense')">
+            <div class="transaction-type-icon">📉</div>
+            <div class="transaction-type-label">Pengeluaran</div>
+          </button>
+        </div>
+
+        <!-- Transaction Form -->
+        <form id="transactionForm">
+          <!-- Amount -->
+          <div class="form-group">
+            <label class="form-label">
+              Jumlah <span class="required">*</span>
+            </label>
+            <div class="amount-wrapper">
+              <span class="amount-prefix">Rp</span>
+              <input type="text" id="amount" class="form-input amount-input" placeholder="0" required>
+            </div>
+            <div class="amount-preview" id="amountPreview">Rp 0</div>
+          </div>
+
+          <!-- Category -->
+          <div class="form-group">
+            <label class="form-label">
+              Kategori <span class="required">*</span>
+            </label>
+            <select id="category" class="form-select" required>
+              <option value="">Pilih kategori...</option>
+            </select>
+            <p class="form-help">Pilih kategori yang sesuai dengan transaksi Anda</p>
+          </div>
+
+          <!-- Description -->
+          <div class="form-group">
+            <label class="form-label">
+              Deskripsi <span class="optional">(opsional)</span>
+            </label>
+            <textarea id="description" class="form-textarea" placeholder="Tambahkan catatan untuk transaksi ini..." rows="3"></textarea>
+          </div>
+
+          <!-- Date and Time -->
+          <div class="grid grid-cols-2" style="gap: var(--space-4);">
+            <div class="form-group">
+              <label class="form-label">
+                Tanggal <span class="required">*</span>
+              </label>
+              <input type="date" id="transactionDate" class="form-input" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">
+                Waktu <span class="optional">(opsional)</span>
+              </label>
+              <input type="time" id="transactionTime" class="form-input">
+            </div>
+          </div>
+
+          <!-- File Attachment -->
+          <div class="form-group">
+            <label class="form-label">
+              Lampiran <span class="optional">(opsional)</span>
+            </label>
+            <input type="file" id="attachment" class="form-input" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf">
+            <p class="form-help">Format: JPG, PNG, GIF, WebP, PDF (Maks. 5MB)</p>
+            <div id="filePreview" style="margin-top: var(--space-3);"></div>
+          </div>
+
+          <!-- Budget Warning -->
+          <div id="budgetWarning" class="alert alert-warning hidden" style="margin-top: var(--space-4);">
+            <span class="alert-icon">⚠️</span>
+            <div class="alert-content">
+              <div class="alert-title">Peringatan Anggaran</div>
+              <div class="alert-message" id="budgetWarningMessage"></div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeTransactionModal()">
+          Batal
+        </button>
+        <button class="btn btn-primary" id="submitTransactionBtn">
+          <span>💾</span> Simpan Transaksi
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Transaction Modal -->
   <div class="modal-backdrop" id="editModal">
     <div class="modal">
       <div class="modal-header">
-        <h3>✏️ Edit Transaksi</h3>
-        <button class="modal-close">&times;</button>
+        <h3 class="modal-title">✏️ Edit Transaksi</h3>
+        <button class="modal-close" onclick="closeEditModal()">&times;</button>
       </div>
       <div class="modal-body">
         <form id="editForm">
           <input type="hidden" id="editId">
           <div class="form-group">
-            <label class="form-label">Jumlah</label>
+            <label class="form-label">Jumlah <span class="required">*</span></label>
             <input type="text" id="editAmount" class="form-input" required>
           </div>
           <div class="form-group">
             <label class="form-label">Deskripsi</label>
-            <textarea id="editDescription" class="form-textarea"></textarea>
+            <textarea id="editDescription" class="form-textarea" rows="3"></textarea>
           </div>
           <div class="form-group">
-            <label class="form-label">Tanggal</label>
+            <label class="form-label">Tanggal <span class="required">*</span></label>
             <input type="date" id="editDate" class="form-input" required>
           </div>
         </form>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-light" onclick="hideModal()">Batal</button>
-        <button class="btn btn-primary" id="saveEditBtn">💾 Simpan</button>
+        <button class="btn btn-ghost" onclick="closeEditModal()">Batal</button>
+        <button class="btn btn-primary" id="saveEditBtn">💾 Simpan Perubahan</button>
       </div>
     </div>
   </div>
@@ -230,17 +337,20 @@
   <div class="modal-backdrop" id="deleteModal">
     <div class="modal">
       <div class="modal-header">
-        <h3>🗑️ Hapus Transaksi</h3>
-        <button class="modal-close">&times;</button>
+        <h3 class="modal-title">🗑️ Hapus Transaksi</h3>
+        <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
       </div>
       <div class="modal-body">
         <div class="alert alert-warning">
-          <span>⚠️</span>
-          <span>Apakah Anda yakin ingin menghapus transaksi ini? Tindakan ini tidak dapat dibatalkan.</span>
+          <span class="alert-icon">⚠️</span>
+          <div class="alert-content">
+            <div class="alert-title">Konfirmasi Penghapusan</div>
+            <div class="alert-message">Apakah Anda yakin ingin menghapus transaksi ini? Tindakan ini tidak dapat dibatalkan.</div>
+          </div>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-light" onclick="hideModal()">Batal</button>
+        <button class="btn btn-ghost" onclick="closeDeleteModal()">Batal</button>
         <button class="btn btn-danger" id="confirmDeleteBtn">🗑️ Ya, Hapus</button>
       </div>
     </div>
@@ -248,5 +358,6 @@
 
   <script src="/js/utils.js"></script>
   <script src="/js/dashboard.js"></script>
+  <script src="/js/transaction-modal.js"></script>
 </body>
 </html>

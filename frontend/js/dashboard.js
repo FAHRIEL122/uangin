@@ -414,3 +414,26 @@ function updateThemeIcon() {
   const theme = document.documentElement.getAttribute('data-theme');
   document.getElementById('themeToggle').textContent = theme === 'dark' ? '☀️' : '🌙';
 }
+
+// Check for modal URL parameter (from redirected income/expense pages)
+function checkModalParameter() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const modalType = urlParams.get('modal');
+  
+  if (modalType === 'income' || modalType === 'expense') {
+    // Wait for everything to load, then open modal
+    setTimeout(() => {
+      if (typeof openTransactionModal === 'function') {
+        openTransactionModal(modalType);
+      }
+    }, 500);
+    
+    // Clean URL
+    window.history.replaceState({}, document.title, '/dashboard');
+  }
+}
+
+// Call after DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(checkModalParameter, 100);
+});

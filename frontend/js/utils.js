@@ -259,7 +259,31 @@ function showModal(title, content, buttons = []) {
 
 // Hide modal
 function hideModal() {
-  const backdrop = document.querySelector('.modal-backdrop');
+  const backdrop = document.querySelector('.modal-backdrop.active');
+  if (backdrop) {
+    backdrop.classList.remove('active');
+  }
+}
+
+// Show modal by ID
+function showModalById(modalId) {
+  const backdrop = document.getElementById(modalId);
+  if (backdrop) {
+    backdrop.classList.add('active');
+    
+    // Close on backdrop click
+    backdrop.addEventListener('click', function handler(e) {
+      if (e.target === backdrop) {
+        backdrop.classList.remove('active');
+        backdrop.removeEventListener('click', handler);
+      }
+    });
+  }
+}
+
+// Hide modal by ID
+function hideModalById(modalId) {
+  const backdrop = document.getElementById(modalId);
   if (backdrop) {
     backdrop.classList.remove('active');
   }
@@ -355,6 +379,39 @@ function formatInputAsCurrency(input) {
   }
 }
 
+// ===== FORM VALIDATION =====
+
+// Show form error
+function showFormError(fieldId, message) {
+  const field = document.getElementById(fieldId);
+  if (field) {
+    field.classList.add('error');
+    
+    // Remove existing error message
+    const existingError = field.parentElement.querySelector('.form-error');
+    if (existingError) {
+      existingError.remove();
+    }
+    
+    // Add error message
+    const errorEl = document.createElement('div');
+    errorEl.className = 'form-error';
+    errorEl.textContent = message;
+    field.parentElement.appendChild(errorEl);
+  }
+}
+
+// Clear all form errors
+function clearFormErrors() {
+  document.querySelectorAll('.form-input.error, .form-select.error, .form-textarea.error').forEach(field => {
+    field.classList.remove('error');
+  });
+  
+  document.querySelectorAll('.form-error').forEach(error => {
+    error.remove();
+  });
+}
+
 // Debounce function
 function debounce(func, wait) {
   let timeout;
@@ -374,11 +431,11 @@ function debounce(func, wait) {
 document.addEventListener('DOMContentLoaded', () => {
   const savedTheme = getSavedTheme();
   setTheme(savedTheme);
-  
+
   // Check auth if not on auth pages
-  const isAuthPage = window.location.pathname.includes('login') || 
+  const isAuthPage = window.location.pathname.includes('login') ||
                      window.location.pathname.includes('register');
-  
+
   if (!isAuthPage && !isAuthenticated()) {
     // Don't redirect on landing page
     if (window.location.pathname !== '/' && window.location.pathname !== '/login') {
@@ -386,3 +443,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 });
+
+// Expose modal functions globally
+window.showModal = showModal;
+window.hideModal = hideModal;
+window.showModalById = showModalById;
+window.hideModalById = hideModalById;
+window.showConfirm = showConfirm;
+
+// Expose form validation functions globally
+window.showFormError = showFormError;
+window.clearFormErrors = clearFormErrors;
