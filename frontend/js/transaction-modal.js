@@ -188,6 +188,9 @@ async function submitTransaction() {
     closeTransactionModal();
     
     // Reload dashboard data
+    if (typeof loadTransactions === 'function') {
+      loadTransactions();
+    }
     if (typeof loadDashboardData === 'function') {
       loadDashboardData();
     }

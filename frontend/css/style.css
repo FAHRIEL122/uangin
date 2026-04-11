@@ -1161,5 +1161,22 @@ body {
    UTILITIES
    ============================================ */
 .text-right { text-align: right; }
+.text-left { text-align: left; }
 .text-center { text-align: center; }
+.text-success { color: var(--success); }
+.text-danger { color: var(--danger); }
+.text-warning { color: var(--warning); }
+.text-muted { color: var(--text-muted); }
 .hidden { display: none !important; }
+
+/* Spinner for old transaction-input.js compatibility */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+}
