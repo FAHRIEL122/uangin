@@ -436,38 +436,31 @@ function showExportMenu() {
   showModal('📥 Export Data', `
     <p style="margin-bottom: 1rem; color: var(--text-secondary);">Pilih format export:</p>
     <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-      <button onclick="exportCSV()" class="btn btn-success btn-block">📊 Export ke CSV</button>
-      <button onclick="exportJSON()" class="btn btn-ghost btn-block">💾 Export ke JSON</button>
+      <button onclick="exportCSV()" class="btn btn-success btn-block">
+        📊 Export ke CSV (Google Sheets)
+      </button>
+      <button onclick="exportExcel()" class="btn btn-primary btn-block">
+        📄 Export ke Excel (.xls)
+      </button>
     </div>
+    <p style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-muted);">
+      💡 CSV bisa dibuka di Google Sheets atau Excel
+    </p>
   `, [{ text: 'Batal', class: 'btn-ghost', action: () => {} }]);
 }
 
 function exportCSV() {
   hideModal();
   const url = `/api/export/csv?month=${currentMonth}&year=${currentYear}`;
-  window.open(url, '_blank');
+  window.location.href = url;
   showToast('Mengexport data ke CSV...', 'success');
 }
 
-async function exportJSON() {
-  try {
-    hideModal();
-    showToast('Mengexport data...', 'info');
-    const response = await get('/backup');
-    const dataStr = JSON.stringify(response.data, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `uangin-backup-${currentYear}-${String(currentMonth).padStart(2, '0')}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    showToast('Export berhasil!', 'success');
-  } catch (error) {
-    showToast('Export gagal: ' + error.message, 'danger');
-  }
+function exportExcel() {
+  hideModal();
+  const url = `/api/export/excel?month=${currentMonth}&year=${currentYear}`;
+  window.location.href = url;
+  showToast('Mengexport data ke Excel...', 'success');
 }
 
 function updateThemeIcon() {
