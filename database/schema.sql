@@ -92,6 +92,7 @@ CREATE TABLE transactions (
     transaction_date DATE NOT NULL,
     transaction_time TIME DEFAULT NULL,
     attachment_url VARCHAR(255) DEFAULT NULL,
+    deleted_at TIMESTAMP DEFAULT NULL COMMENT 'Soft delete timestamp',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
@@ -102,7 +103,8 @@ CREATE TABLE transactions (
     INDEX idx_user_type (user_id, type),
     INDEX idx_category (category_id),
     INDEX idx_recurring (recurring_id),
-    INDEX idx_transaction_date (transaction_date)
+    INDEX idx_transaction_date (transaction_date),
+    INDEX idx_deleted (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================

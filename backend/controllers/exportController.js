@@ -27,6 +27,7 @@ async function exportCSV(req, res) {
       WHERE t.user_id = ?
         AND MONTH(t.transaction_date) = ?
         AND YEAR(t.transaction_date) = ?
+        AND t.deleted_at IS NULL
       ORDER BY t.transaction_date DESC, t.transaction_time DESC`,
       [userId, targetMonth, targetYear]
     );
@@ -103,6 +104,7 @@ async function exportExcel(req, res) {
       WHERE t.user_id = ?
         AND MONTH(t.transaction_date) = ?
         AND YEAR(t.transaction_date) = ?
+        AND t.deleted_at IS NULL
       ORDER BY t.transaction_date DESC, t.transaction_time DESC`,
       [userId, targetMonth, targetYear]
     );

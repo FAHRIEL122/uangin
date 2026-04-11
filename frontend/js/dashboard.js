@@ -139,17 +139,28 @@ function updateSummaryCards(summary) {
   }
 }
 
+// Get chart theme colors
+function getChartThemeColors() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  return {
+    text: isDark ? '#d1d5db' : '#6b7280',
+    grid: isDark ? '#374151' : '#e5e7eb',
+    background: isDark ? '#1f2937' : '#ffffff'
+  };
+}
+
 // Update chart
 function updateChart(summary) {
   const income = parseFloat(summary.total_income);
   const expense = parseFloat(summary.total_expense);
-  
+  const theme = getChartThemeColors();
+
   if (chart) {
     chart.destroy();
   }
-  
+
   const ctx = document.getElementById('financeChart').getContext('2d');
-  
+
   chart = new Chart(ctx, {
     type: 'doughnut',
     data: {
@@ -167,6 +178,7 @@ function updateChart(summary) {
         legend: {
           position: 'bottom',
           labels: {
+            color: theme.text,
             padding: 20,
             font: {
               size: 12
@@ -282,6 +294,7 @@ function setupEventListeners() {
   document.getElementById('themeToggle').addEventListener('click', () => {
     toggleTheme();
     updateThemeIcon();
+    setTimeout(refreshChart, 100); // Refresh charts after theme changes
   });
   
   // Navbar toggle (mobile)
@@ -415,7 +428,17 @@ function updateThemeIcon() {
   document.getElementById('themeToggle').textContent = theme === 'dark' ? '☀️' : '🌙';
 }
 
-// Check for modal URL parameter (from redirected income/expense pages)
+// Refresh chart on theme change
+function refreshChart() {
+  if (chart) {
+    const theme = getChartThemeColors();
+    chart.options.plugins.legend.labels.color = theme.text;
+    chart.update('none'); // Update without animation
+  }
+}
+
+// Expose globally
+window.refreshChart = refreshChart;
 function checkModalParameter() {
   const urlParams = new URLSearchParams(window.location.search);
   const modalType = urlParams.get('modal');

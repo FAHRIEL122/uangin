@@ -15,4 +15,9 @@ router.delete('/:id', transactionController.deleteTransaction);
 router.post('/undo', transactionController.undoTransaction);
 router.post('/process-recurring', triggerRecurring);
 
+// Recycle Bin (Soft Delete)
+router.get('/archive', transactionController.getArchivedTransactions);
+router.post('/:id/restore', transactionController.restoreTransaction);
+router.delete('/:id/permanent', transactionController.permanentDeleteTransaction);
+
 module.exports = router;

@@ -17,21 +17,22 @@ async function getSummary(req, res) {
     
     // Get summary data
     const [summary] = await pool.query(
-      `SELECT 
+      `SELECT
         COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as total_income,
         COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as total_expense,
         COUNT(CASE WHEN type = 'income' THEN 1 END) as income_count,
         COUNT(CASE WHEN type = 'expense' THEN 1 END) as expense_count
       FROM transactions
-      WHERE user_id = ? 
+      WHERE user_id = ?
         AND MONTH(transaction_date) = ?
-        AND YEAR(transaction_date) = ?`,
+        AND YEAR(transaction_date) = ?
+        AND deleted_at IS NULL`,
       [userId, targetMonth, targetYear]
     );
-    
+
     // Get top expense categories
     const [topCategories] = await pool.query(
-      `SELECT 
+      `SELECT
         c.name,
         c.icon,
         c.color,
@@ -39,8 +40,9 @@ async function getSummary(req, res) {
         SUM(t.amount) as total_amount
       FROM transactions t
       JOIN categories c ON t.category_id = c.id
-      WHERE t.user_id = ? 
+      WHERE t.user_id = ?
         AND t.type = 'expense'
+        AND t.deleted_at IS NULL
         AND MONTH(t.transaction_date) = ?
         AND YEAR(t.transaction_date) = ?
       GROUP BY c.id, c.name, c.icon, c.color
@@ -98,6 +100,7 @@ async function getTransactionList(req, res) {
         AND MONTH(t.transaction_date) = ?
         AND YEAR(t.transaction_date) = ?
         ${typeFilter}
+        AND t.deleted_at IS NULL
       ORDER BY t.transaction_date DESC, t.created_at DESC`,
       params
     );
@@ -126,6 +129,7 @@ async function getMonthlyTrend(req, res) {
       FROM transactions
       WHERE user_id = ?
         AND YEAR(transaction_date) = ?
+        AND deleted_at IS NULL
       GROUP BY MONTH(transaction_date)
       ORDER BY month`,
       [userId, targetYear]
@@ -173,6 +177,7 @@ async function getTopExpenses(req, res) {
       LEFT JOIN categories c ON t.category_id = c.id
       WHERE t.user_id = ?
         AND t.type = 'expense'
+        AND t.deleted_at IS NULL
         AND MONTH(t.transaction_date) = ?
         AND YEAR(t.transaction_date) = ?
       ORDER BY t.amount DESC
@@ -199,7 +204,7 @@ async function getCategoryBreakdown(req, res) {
     const targetYear = year ? parseInt(year) : now.getFullYear();
     
     const [categories] = await pool.query(
-      `SELECT 
+      `SELECT
         c.name,
         c.type,
         c.icon,
@@ -208,10 +213,11 @@ async function getCategoryBreakdown(req, res) {
         SUM(t.amount) as total_amount,
         AVG(t.amount) as average_amount
       FROM categories c
-      LEFT JOIN transactions t ON c.id = t.category_id 
+      LEFT JOIN transactions t ON c.id = t.category_id
         AND t.user_id = ?
         AND MONTH(t.transaction_date) = ?
         AND YEAR(t.transaction_date) = ?
+        AND t.deleted_at IS NULL
       WHERE c.user_id = ?
       GROUP BY c.id, c.name, c.type, c.icon, c.color
       HAVING transaction_count > 0

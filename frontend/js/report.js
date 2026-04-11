@@ -255,6 +255,16 @@ async function loadChart() {
   }
 }
 
+// Get chart theme colors
+function getChartThemeColors() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  return {
+    text: isDark ? '#d1d5db' : '#6b7280',
+    grid: isDark ? '#374151' : '#e5e7eb',
+    background: isDark ? '#1f2937' : '#ffffff'
+  };
+}
+
 async function loadTrendChart() {
   try {
     const response = await get(`/reports/monthly-trend?year=${currentYear}`);
@@ -262,6 +272,8 @@ async function loadTrendChart() {
 
     const ctx = document.getElementById('trendChart');
     if (!ctx) return;
+
+    const theme = getChartThemeColors();
 
     if (trendChart) trendChart.destroy();
 
@@ -292,10 +304,21 @@ async function loadTrendChart() {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true } }
+          legend: { 
+            position: 'bottom', 
+            labels: { color: theme.text, padding: 20, usePointStyle: true } 
+          }
         },
         scales: {
-          y: { beginAtZero: true, ticks: { callback: v => formatCurrencySimple(v) } }
+          x: {
+            ticks: { color: theme.text },
+            grid: { color: theme.grid }
+          },
+          y: { 
+            beginAtZero: true, 
+            ticks: { color: theme.text, callback: v => formatCurrencySimple(v) },
+            grid: { color: theme.grid }
+          }
         }
       }
     });

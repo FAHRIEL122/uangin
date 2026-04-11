@@ -41,25 +41,27 @@ async function getTransactions(req, res) {
         c.color as category_color
       FROM transactions t
       LEFT JOIN categories c ON t.category_id = c.id
-      WHERE t.user_id = ? 
+      WHERE t.user_id = ?
         AND t.transaction_date >= ?
         AND t.transaction_date < ?
+        AND t.deleted_at IS NULL
       ORDER BY t.transaction_date DESC, t.created_at DESC`,
       [userId, startDate, endDate]
     );
-    
+
     // Get summary
     const [summary] = await pool.query(
-      `SELECT 
+      `SELECT
         COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as total_income,
         COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as total_expense
       FROM transactions
-      WHERE user_id = ? 
+      WHERE user_id = ?
         AND transaction_date >= ?
-        AND transaction_date < ?`,
+        AND transaction_date < ?
+        AND deleted_at IS NULL`,
       [userId, startDate, endDate]
     );
-    
+
     return success(res, 'Data transaksi berhasil diambil', {
       transactions,
       summary: summary[0],
@@ -77,9 +79,9 @@ async function getTransactions(req, res) {
 async function getAllTransactions(req, res) {
   try {
     const userId = req.user.userId;
-    
+
     const [transactions] = await pool.query(
-      `SELECT 
+      `SELECT
         t.id,
         t.type,
         t.amount,
@@ -92,11 +94,12 @@ async function getAllTransactions(req, res) {
       FROM transactions t
       LEFT JOIN categories c ON t.category_id = c.id
       WHERE t.user_id = ?
+        AND t.deleted_at IS NULL
       ORDER BY t.transaction_date DESC, t.created_at DESC
       LIMIT 1000`,
       [userId]
     );
-    
+
     return success(res, 'Semua transaksi berhasil diambil', transactions);
     
   } catch (err) {
@@ -301,37 +304,122 @@ async function updateTransaction(req, res) {
   }
 }
 
-// Delete transaction
+// Delete transaction (Soft Delete)
 async function deleteTransaction(req, res) {
   try {
     const userId = req.user.userId;
     const transactionId = req.params.id;
-    
-    // Check if transaction exists
+
+    // Check if transaction exists and not already deleted
     const [existing] = await pool.query(
-      'SELECT * FROM transactions WHERE id = ? AND user_id = ?',
+      'SELECT * FROM transactions WHERE id = ? AND user_id = ? AND deleted_at IS NULL',
       [transactionId, userId]
     );
-    
+
     if (existing.length === 0) {
-      return notFound(res, 'Transaksi tidak ditemukan');
+      return notFound(res, 'Transaksi tidak ditemukan atau sudah dihapus');
     }
-    
-    // Log for undo
+
+    // Soft delete
     await pool.query(
-      `INSERT INTO undo_log (user_id, transaction_id, action, old_data)
-      VALUES (?, ?, 'DELETE', ?)`,
-      [userId, transactionId, JSON.stringify(existing[0])]
+      'UPDATE transactions SET deleted_at = NOW() WHERE id = ?',
+      [transactionId]
     );
-    
-    // Delete transaction
-    await pool.query('DELETE FROM transactions WHERE id = ?', [transactionId]);
-    
-    return success(res, 'Transaksi berhasil dihapus');
-    
+
+    return success(res, 'Transaksi berhasil dihapus (dipindah ke arsip)');
+
   } catch (err) {
     console.error('Delete transaction error:', err.message);
     return error(res, 'Terjadi kesalahan saat menghapus transaksi', 500);
+  }
+}
+
+// Get archived transactions
+async function getArchivedTransactions(req, res) {
+  try {
+    const userId = req.user.userId;
+    const { page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;
+
+    const [transactions] = await pool.query(
+      `SELECT
+        t.*,
+        c.name as category_name,
+        c.icon as category_icon
+      FROM transactions t
+      LEFT JOIN categories c ON t.category_id = c.id
+      WHERE t.user_id = ? AND t.deleted_at IS NOT NULL
+      ORDER BY t.deleted_at DESC
+      LIMIT ? OFFSET ?`,
+      [userId, parseInt(limit), parseInt(offset)]
+    );
+
+    const [countResult] = await pool.query(
+      'SELECT COUNT(*) as total FROM transactions WHERE user_id = ? AND deleted_at IS NOT NULL',
+      [userId]
+    );
+
+    const total = countResult[0].total;
+
+    return success(res, 'Arsip transaksi berhasil diambil', {
+      transactions,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+
+  } catch (err) {
+    console.error('Get archived transactions error:', err.message);
+    return error(res, 'Terjadi kesalahan saat mengambil arsip', 500);
+  }
+}
+
+// Restore transaction
+async function restoreTransaction(req, res) {
+  try {
+    const userId = req.user.userId;
+    const { id } = req.params;
+
+    const [result] = await pool.query(
+      'UPDATE transactions SET deleted_at = NULL WHERE id = ? AND user_id = ? AND deleted_at IS NOT NULL',
+      [id, userId]
+    );
+
+    if (result.affectedRows === 0) {
+      return badRequest(res, 'Transaksi tidak ditemukan di arsip');
+    }
+
+    return success(res, 'Transaksi berhasil dikembalikan');
+
+  } catch (err) {
+    console.error('Restore transaction error:', err.message);
+    return error(res, 'Terjadi kesalahan saat mengembalikan transaksi', 500);
+  }
+}
+
+// Permanently delete transaction
+async function permanentDeleteTransaction(req, res) {
+  try {
+    const userId = req.user.userId;
+    const { id } = req.params;
+
+    const [result] = await pool.query(
+      'DELETE FROM transactions WHERE id = ? AND user_id = ? AND deleted_at IS NOT NULL',
+      [id, userId]
+    );
+
+    if (result.affectedRows === 0) {
+      return badRequest(res, 'Transaksi tidak ditemukan di arsip');
+    }
+
+    return success(res, 'Transaksi berhasil dihapus permanen');
+
+  } catch (err) {
+    console.error('Permanent delete transaction error:', err.message);
+    return error(res, 'Terjadi kesalahan saat menghapus permanen', 500);
   }
 }
 
@@ -380,5 +468,8 @@ module.exports = {
   createTransaction,
   updateTransaction,
   deleteTransaction,
-  undoTransaction
+  undoTransaction,
+  getArchivedTransactions,
+  restoreTransaction,
+  permanentDeleteTransaction
 };
