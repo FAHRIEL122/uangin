@@ -35,16 +35,16 @@ async function initializeReport() {
 }
 
 function setupTabs() {
-  const tabBtns = document.querySelectorAll('.tab-btn');
+  const tabBtns = document.querySelectorAll('.tab');
   const tabPanes = document.querySelectorAll('.tab-pane');
-  
+
   tabBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       const tab = btn.dataset.tab;
-      
+
       tabBtns.forEach(b => b.classList.remove('active'));
       tabPanes.forEach(p => p.classList.remove('active'));
-      
+
       btn.classList.add('active');
       document.getElementById(`${tab}-tab`).classList.add('active');
     });
@@ -332,29 +332,52 @@ async function loadReportCategories() {
 async function loadCategories() {
   try {
     const response = await get(`/reports/categories?month=${currentMonth}&year=${currentYear}`);
-    const categories = response.data;
-    
-    const container = document.getElementById('categoryBreakdown');
-    
-    if (categories.length === 0) {
-      container.innerHTML = '<div class="empty-state"><div class="empty-icon">📂</div><p>Belum ada kategori dengan transaksi</p></div>';
-    } else {
-      container.innerHTML = categories.map(cat => `
-        <div class="category-card" style="--category-color: ${cat.color}">
-          <div class="category-header">
-            <div class="category-info">
-              <span class="category-icon">${cat.icon}</span>
-              <span class="category-name">${cat.name}</span>
-              <span class="badge badge-${cat.type}">${cat.type === 'income' ? 'Pendapatan' : 'Pengeluaran'}</span>
+    const cats = response.data;
+
+    const incomeContainer = document.getElementById('incomeCategories');
+    const expenseContainer = document.getElementById('expenseCategories');
+
+    const incomeCats = cats.filter(c => c.type === 'income');
+    const expenseCats = cats.filter(c => c.type === 'expense');
+
+    // Render income categories
+    if (incomeContainer) {
+      if (incomeCats.length === 0) {
+        incomeContainer.innerHTML = '<p style="color: var(--text-muted); font-size: 0.875rem;">Tidak ada data</p>';
+      } else {
+        incomeContainer.innerHTML = incomeCats.map(cat => `
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) 0; border-bottom: 1px solid var(--border);">
+            <div style="display: flex; align-items: center; gap: var(--space-2);">
+              <span>${cat.icon}</span>
+              <span style="font-size: 0.875rem;">${cat.name}</span>
             </div>
-            <div class="category-amount">${formatCurrency(cat.total_amount)}</div>
+            <div style="text-align: right;">
+              <div style="font-weight: 600; color: var(--success); font-size: 0.9rem;">${formatCurrency(cat.total_amount)}</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">${cat.transaction_count} transaksi</div>
+            </div>
           </div>
-          <div class="category-stats">
-            <span>📊 ${cat.transaction_count} transaksi</span>
-            <span>💵 Rata-rata: ${formatCurrency(cat.average_amount)}</span>
+        `).join('');
+      }
+    }
+
+    // Render expense categories
+    if (expenseContainer) {
+      if (expenseCats.length === 0) {
+        expenseContainer.innerHTML = '<p style="color: var(--text-muted); font-size: 0.875rem;">Tidak ada data</p>';
+      } else {
+        expenseContainer.innerHTML = expenseCats.map(cat => `
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) 0; border-bottom: 1px solid var(--border);">
+            <div style="display: flex; align-items: center; gap: var(--space-2);">
+              <span>${cat.icon}</span>
+              <span style="font-size: 0.875rem;">${cat.name}</span>
+            </div>
+            <div style="text-align: right;">
+              <div style="font-weight: 600; color: var(--danger); font-size: 0.9rem;">${formatCurrency(cat.total_amount)}</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">${cat.transaction_count} transaksi</div>
+            </div>
           </div>
-        </div>
-      `).join('');
+        `).join('');
+      }
     }
   } catch (error) {
     console.error('Load categories error:', error);

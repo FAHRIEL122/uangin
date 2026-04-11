@@ -5,53 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Laporan - UANGIN</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="/css/style.css">
-  <link rel="stylesheet" href="/css/report.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <!-- Navigation -->
   <nav class="navbar">
     <div class="navbar-container">
       <a href="/dashboard" class="navbar-brand">
-        <span class="brand-icon">💰</span>
-        <span class="brand-text">UANGIN</span>
+        <div class="navbar-brand-icon">💰</div>
+        <span>UANGIN</span>
       </a>
-      <button class="navbar-toggle" id="navbarToggle">
-        <span></span>
-        <span></span>
-        <span></span>
+      <button class="hamburger-toggle" id="navbarToggle">
+        <span></span><span></span><span></span>
       </button>
       <div class="navbar-menu" id="navbarMenu">
-        <a href="/dashboard" class="navbar-item">
-          <span class="item-icon">📊</span>
-          <span>Dashboard</span>
-        </a>
-        <a href="/pendapatan" class="navbar-item income">
-          <span class="item-icon">➕</span>
-          <span>Pendapatan</span>
-        </a>
-        <a href="/pengeluaran" class="navbar-item expense">
-          <span class="item-icon">➖</span>
-          <span>Pengeluaran</span>
-        </a>
-        <a href="/laporan" class="navbar-item active">
-          <span class="item-icon">📈</span>
-          <span>Laporan</span>
-        </a>
-        <a href="/kalender" class="navbar-item">
-          <span class="item-icon">📅</span>
-          <span>Kalender</span>
-        </a>
-        <a href="/profil" class="navbar-item">
-          <span class="item-icon">👤</span>
-          <span>Profil</span>
-        </a>
+        <a href="/dashboard" class="navbar-item">Dashboard</a>
+        <button class="navbar-item income" onclick="window.location.href='/pendapatan'">Pendapatan</button>
+        <button class="navbar-item expense" onclick="window.location.href='/pengeluaran'">Pengeluaran</button>
+        <a href="/laporan" class="navbar-item active">Laporan</a>
+        <a href="/kalender" class="navbar-item">Kalender</a>
+        <a href="/profil" class="navbar-item">Profil</a>
         <div class="navbar-divider"></div>
-        <button class="navbar-item logout" id="logoutBtn">
-          <span class="item-icon">🚪</span>
-          <span>Logout</span>
-        </button>
+        <button class="navbar-item logout" id="logoutBtn">Logout</button>
         <button class="theme-toggle" id="themeToggle" title="Toggle Dark Mode">🌙</button>
       </div>
     </div>
@@ -59,162 +36,130 @@
 
   <!-- Main Content -->
   <main class="main-content">
-    <div class="report-header">
+    <!-- Header -->
+    <div class="flex items-center justify-between" style="margin-bottom: var(--space-6); flex-wrap: wrap; gap: var(--space-3);">
       <div>
-        <h1>📊 Laporan Keuangan</h1>
-        <p>Analisis dan insight keuangan Anda</p>
+        <h1 style="font-size: 1.5rem; font-weight: 700;">Laporan Keuangan</h1>
+        <p class="text-muted" style="font-size: 0.875rem;">Analisis dan insight keuangan Anda</p>
       </div>
-      <div class="header-actions">
-        <div class="month-selector">
-          <select id="monthSelect" class="form-select">
-            <option value="1">Januari</option>
-            <option value="2">Februari</option>
-            <option value="3">Maret</option>
-            <option value="4">April</option>
-            <option value="5">Mei</option>
-            <option value="6">Juni</option>
-            <option value="7">Juli</option>
-            <option value="8">Agustus</option>
-            <option value="9">September</option>
-            <option value="10">Oktober</option>
-            <option value="11">November</option>
-            <option value="12">Desember</option>
-          </select>
-          <select id="yearSelect" class="form-select"></select>
-        </div>
+      <div class="flex items-center gap-3">
+        <select id="monthSelect" class="form-select" style="width: auto; min-width: 120px;"></select>
+        <select id="yearSelect" class="form-select" style="width: auto; min-width: 100px;"></select>
         <button class="btn btn-primary" id="exportBtn">📥 Export</button>
       </div>
     </div>
 
     <!-- Tabs -->
-    <div class="tabs-container">
-      <div class="tabs">
-        <button class="tab-btn active" data-tab="summary">
-          <span class="tab-icon">📋</span>
-          <span>Ringkasan</span>
-        </button>
-        <button class="tab-btn" data-tab="transactions">
-          <span class="tab-icon">💳</span>
-          <span>Transaksi</span>
-        </button>
-        <button class="tab-btn" data-tab="categories">
-          <span class="tab-icon">📂</span>
-          <span>Kategori</span>
-        </button>
-        <button class="tab-btn" data-tab="budget">
-          <span class="tab-icon">🎯</span>
-          <span>Budget</span>
-        </button>
-        <button class="tab-btn" data-tab="insights">
-          <span class="tab-icon">💡</span>
-          <span>Insight</span>
-        </button>
+    <div class="tabs">
+      <button class="tab active" data-tab="summary">Ringkasan</button>
+      <button class="tab" data-tab="transactions">Transaksi</button>
+      <button class="tab" data-tab="categories">Kategori</button>
+      <button class="tab" data-tab="budget">Budget</button>
+    </div>
+
+    <!-- Summary Tab -->
+    <div class="tab-pane active" id="summary-tab">
+      <!-- Summary Cards -->
+      <div class="summary-grid" style="margin-bottom: var(--space-6);">
+        <div class="stat-card income">
+          <div class="stat-card-icon">📈</div>
+          <div class="stat-card-label">Total Pendapatan</div>
+          <div class="stat-card-value" id="totalIncome">Rp 0</div>
+        </div>
+        <div class="stat-card expense">
+          <div class="stat-card-icon">📉</div>
+          <div class="stat-card-label">Total Pengeluaran</div>
+          <div class="stat-card-value" id="totalExpense">Rp 0</div>
+        </div>
+        <div class="stat-card balance">
+          <div class="stat-card-icon">💎</div>
+          <div class="stat-card-label">Saldo Bersih</div>
+          <div class="stat-card-value" id="netBalance">Rp 0</div>
+        </div>
+      </div>
+
+      <!-- Chart -->
+      <div class="grid" style="grid-template-columns: 2fr 1fr; gap: var(--space-4);">
+        <div class="card">
+          <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: var(--space-4);">Distribusi Keuangan</h3>
+          <div class="chart-container">
+            <canvas id="financeChart"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: var(--space-4);">Top 5 Pengeluaran</h3>
+          <div id="topExpenses" style="font-size: 0.875rem;"></div>
+        </div>
       </div>
     </div>
 
-    <!-- Tab Content -->
-    <div class="tab-content">
-      <!-- Summary Tab -->
-      <div class="tab-pane active" id="summary-tab">
-        <div class="summary-cards">
-          <div class="stat-card income">
-            <div class="stat-icon">📈</div>
-            <div class="stat-label">Total Pendapatan</div>
-            <div class="stat-value" id="totalIncome">Rp 0</div>
-          </div>
-          <div class="stat-card expense">
-            <div class="stat-icon">📉</div>
-            <div class="stat-label">Total Pengeluaran</div>
-            <div class="stat-value" id="totalExpense">Rp 0</div>
-          </div>
-          <div class="stat-card balance">
-            <div class="stat-icon">💎</div>
-            <div class="stat-label">Saldo Bersih</div>
-            <div class="stat-value" id="netBalance">Rp 0</div>
-          </div>
+    <!-- Transactions Tab -->
+    <div class="tab-pane" id="transactions-tab">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Daftar Transaksi</h3>
         </div>
+        <div class="filter-bar">
+          <input type="text" id="reportSearchInput" class="filter-input" placeholder="Cari transaksi...">
+          <select id="reportTypeFilter" class="filter-input" style="max-width: 150px;">
+            <option value="">Semua Tipe</option>
+            <option value="income">Pendapatan</option>
+            <option value="expense">Pengeluaran</option>
+          </select>
+          <select id="reportCategoryFilter" class="filter-input" style="max-width: 180px;">
+            <option value="">Semua Kategori</option>
+          </select>
+          <select id="reportSortBy" class="filter-input" style="max-width: 150px;">
+            <option value="date-desc">Terbaru</option>
+            <option value="date-asc">Terlama</option>
+            <option value="amount-desc">Terbesar</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" id="clearReportFilters">Reset</button>
+        </div>
+        <div class="table-container">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Tanggal</th>
+                <th>Deskripsi</th>
+                <th>Kategori</th>
+                <th>Tipe</th>
+                <th class="text-right">Jumlah</th>
+              </tr>
+            </thead>
+            <tbody id="transactionBody"></tbody>
+          </table>
+        </div>
+        <div id="emptyTransactions" class="empty-state hidden">
+          <div class="empty-state-icon">📭</div>
+          <h3 class="empty-state-title">Tidak ada transaksi</h3>
+          <p class="empty-state-text">Coba ubah filter atau kata kunci pencarian</p>
+        </div>
+        <div style="padding: var(--space-3) var(--space-4); border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--text-muted);" id="transactionCount"></div>
+      </div>
+    </div>
 
+    <!-- Categories Tab -->
+    <div class="tab-pane" id="categories-tab">
+      <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--space-4);">
         <div class="card">
-          <div class="card-header">
-            <h3>🏆 Top 5 Pengeluaran Terbesar</h3>
-          </div>
-          <div id="topExpenses"></div>
+          <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: var(--space-4);">📈 Pendapatan per Kategori</h3>
+          <div id="incomeCategories"></div>
         </div>
-      </div>
-
-      <!-- Transactions Tab -->
-      <div class="tab-pane" id="transactions-tab">
         <div class="card">
-          <div class="card-header">
-            <h3>📋 Daftar Transaksi</h3>
-          </div>
-          
-          <!-- Search & Filter Controls -->
-          <div class="transaction-controls">
-            <div class="control-group">
-              <input type="text" id="reportSearchInput" class="form-input" placeholder="🔍 Cari deskripsi atau kategori...">
-            </div>
-            <div class="control-group">
-              <select id="reportTypeFilter" class="form-select">
-                <option value="">Semua Tipe</option>
-                <option value="income">💚 Pendapatan</option>
-                <option value="expense">❤️ Pengeluaran</option>
-              </select>
-            </div>
-            <div class="control-group">
-              <select id="reportCategoryFilter" class="form-select">
-                <option value="">Semua Kategori</option>
-              </select>
-            </div>
-            <div class="control-group">
-              <select id="reportSortBy" class="form-select">
-                <option value="date-desc">📅 Terbaru</option>
-                <option value="date-asc">📅 Terlama</option>
-                <option value="amount-desc">💰 Terbesar</option>
-                <option value="amount-asc">💰 Terkecil</option>
-              </select>
-            </div>
-            <button class="btn btn-light btn-sm" id="clearReportFilters">🔄 Reset</button>
-          </div>
-          
-          <div class="table-responsive">
-            <table class="table" id="transactionTable">
-              <thead>
-                <tr>
-                  <th>Tanggal</th>
-                  <th>Deskripsi</th>
-                  <th>Kategori</th>
-                  <th>Tipe</th>
-                  <th class="text-right">Jumlah</th>
-                </tr>
-              </thead>
-              <tbody id="transactionBody"></tbody>
-            </table>
-          </div>
-          <div id="emptyTransactions" class="empty-state hidden">
-            <div class="empty-icon">📭</div>
-            <h4>Tidak ada transaksi ditemukan</h4>
-            <p>Coba ubah filter atau kata kunci pencarian Anda</p>
-          </div>
-          <div class="table-footer" id="transactionFooter">
-            <span class="count-info" id="transactionCount"></span>
-          </div>
+          <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: var(--space-4);">📉 Pengeluaran per Kategori</h3>
+          <div id="expenseCategories"></div>
         </div>
       </div>
+    </div>
 
-      <!-- Categories Tab -->
-      <div class="tab-pane" id="categories-tab">
-        <div id="categoryBreakdown"></div>
-      </div>
-
-      <!-- Budget Tab -->
-      <div class="tab-pane" id="budget-tab">
+    <!-- Budget Tab -->
+    <div class="tab-pane" id="budget-tab">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Status Budget</h3>
+        </div>
         <div id="budgetStatus"></div>
-      </div>
-
-      <!-- Insights Tab -->
-      <div class="tab-pane" id="insights-tab">
-        <div id="insightsList"></div>
       </div>
     </div>
   </main>
