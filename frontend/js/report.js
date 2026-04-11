@@ -497,3 +497,79 @@ loadSummary = async function() {
   await originalLoadSummary();
   await loadTopExpenses();
 };
+
+// ===== IMPORT FUNCTIONS =====
+
+window.showImportModal = function() {
+  showModalById('importModal');
+  document.getElementById('importResult').classList.add('hidden');
+  document.getElementById('importFile').value = '';
+};
+
+window.closeImportModal = function() {
+  hideModalById('importModal');
+};
+
+window.downloadImportTemplate = function() {
+  window.location.href = '/api/import/template';
+  showToast('Template berhasil didownload', 'success');
+};
+
+window.importCSVFile = async function() {
+  const fileInput = document.getElementById('importFile');
+  const resultDiv = document.getElementById('importResult');
+  const importBtn = document.getElementById('importBtn');
+  
+  if (!fileInput.files.length) {
+    showToast('Pilih file CSV terlebih dahulu', 'warning');
+    return;
+  }
+
+  const file = fileInput.files[0];
+  if (!file.name.endsWith('.csv')) {
+    showToast('File harus berformat CSV', 'danger');
+    return;
+  }
+
+  importBtn.disabled = true;
+  importBtn.innerHTML = '<span class="loading-spinner"></span> Mengimport...';
+  
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await apiCall('/import/csv', {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = response.data;
+    resultDiv.classList.remove('hidden');
+    
+    let html = '<div class="alert ' + (data.failed > 0 ? 'alert-warning' : 'alert-success') + '">';
+    html += '<span>' + (data.failed > 0 ? '⚠️' : '✅') + '</span>';
+    html += '<div><div class="alert-title">Import Selesai</div>';
+    html += '<div class="alert-message">' + data.imported + ' transaksi berhasil, ' + data.failed + ' gagal</div></div></div>';
+    
+    if (data.errors && data.errors.length > 0) {
+      html += '<div style="margin-top: var(--space-3);"><strong>Error:</strong><ul style="margin: var(--space-2) 0; padding-left: var(--space-5);">';
+      data.errors.forEach(err => {
+        html += '<li style="font-size: 0.85rem; color: var(--text-secondary);">' + err + '</li>';
+      });
+      html += '</ul></div>';
+    }
+    
+    resultDiv.innerHTML = html;
+    
+    // Reload data
+    await loadAllData();
+    showToast('Import selesai!', 'success');
+    
+  } catch (error) {
+    resultDiv.classList.remove('hidden');
+    resultDiv.innerHTML = '<div class="alert alert-danger"><span>❌</span><div><div class="alert-message">' + error.message + '</div></div></div>';
+  } finally {
+    importBtn.disabled = false;
+    importBtn.innerHTML = '📥 Import';
+  }
+};

@@ -21,6 +21,7 @@ const backupRoutes = require('./routes/backupRoutes');
 const exportRoutes = require('./routes/exportRoutes');
 const tagRoutes = require('./routes/tagRoutes');
 const todoRoutes = require('./routes/todoRoutes');
+const importRoutes = require('./routes/importRoutes');
 
 // Initialize Express app
 const app = express();
@@ -126,6 +127,7 @@ app.use('/api/backup', exportLimiter, backupRoutes);
 app.use('/api/export', exportLimiter, exportRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/todos', todoRoutes);
+app.use('/api/import', importRoutes);
 
 // Serve frontend pages
 app.get('/', (req, res) => {

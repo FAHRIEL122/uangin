@@ -45,7 +45,8 @@
       <div class="flex items-center gap-2">
         <select id="monthSelect" class="form-select" style="width: auto; min-width: 110px;"></select>
         <select id="yearSelect" class="form-select" style="width: auto; min-width: 90px;"></select>
-        <button class="btn btn-primary" id="exportBtn">📥 Export</button>
+        <button class="btn btn-ghost" onclick="showImportModal()">📥 Import</button>
+        <button class="btn btn-primary" id="exportBtn">📤 Export</button>
       </div>
     </div>
 
@@ -173,6 +174,42 @@
       </div>
     </div>
   </main>
+
+  <!-- Import Modal -->
+  <div class="modal-backdrop" id="importModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">📥 Import Transaksi CSV</h3>
+        <button class="modal-close" onclick="closeImportModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="color: var(--text-secondary); margin-bottom: var(--space-4);">
+          Upload file CSV dengan format: Tanggal, Tipe, Kategori, Deskripsi, Jumlah
+        </p>
+        <div class="form-group">
+          <label class="form-label">File CSV</label>
+          <input type="file" id="importFile" class="form-input" accept=".csv" required>
+          <p class="text-muted" style="font-size: 0.8rem; margin-top: var(--space-2);">
+            Format: <code>YYYY-MM-DD, income/expense, Kategori, Deskripsi, Jumlah</code>
+          </p>
+        </div>
+        <div id="importResult" class="hidden"></div>
+        <div class="alert alert-info" style="margin-top: var(--space-4);">
+          <span>💡</span>
+          <div>
+            <div class="alert-title">Tips</div>
+            <div class="alert-message">
+              Download template terlebih dahulu untuk format yang benar. Kategori yang tidak ditemukan akan otomatis dibuat.
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="downloadImportTemplate()">📄 Download Template</button>
+        <button class="btn btn-primary" id="importBtn" onclick="importCSVFile()">📥 Import</button>
+      </div>
+    </div>
+  </div>
 
   <script src="/js/utils.js"></script>
   <script src="/js/report.js"></script>
