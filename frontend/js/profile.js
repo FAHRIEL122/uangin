@@ -167,6 +167,15 @@ function exportData() {
   showToast('Mengexport data...', 'success');
 }
 
+function testNotifications() {
+  if (typeof sendTestNotification === 'function') {
+    sendTestNotification();
+    showToast('Notifikasi test dikirim!', 'success');
+  } else {
+    showToast('Script notifikasi belum dimuat', 'warning');
+  }
+}
+
 function updateThemeIcon() {
   const theme = document.documentElement.getAttribute('data-theme');
   const btn = document.getElementById('themeToggle');
