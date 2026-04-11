@@ -8,7 +8,11 @@
     "dev": "nodemon backend/server.js",
     "init-db": "node scripts/init-db.js",
     "seed": "node scripts/init-data.js",
-    "clear": "node scripts/clear-data.js"
+    "clear": "node scripts/clear-data.js",
+    "migrate": "node scripts/migrate-soft-delete.js && node scripts/migrate-goals.js",
+    "migrate:soft-delete": "node scripts/migrate-soft-delete.js",
+    "migrate:goals": "node scripts/migrate-goals.js",
+    "migrate:todos": "node scripts/migrate-todos.js"
   },
   "keywords": [
     "finance",
