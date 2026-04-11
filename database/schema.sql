@@ -193,6 +193,27 @@ CREATE TABLE todos (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
+-- 10. SAVINGS GOALS TABLE
+-- ============================================
+CREATE TABLE savings_goals (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    icon VARCHAR(10) DEFAULT '🎯',
+    target_amount DECIMAL(15, 2) NOT NULL,
+    current_amount DECIMAL(15, 2) DEFAULT 0.00,
+    deadline DATE DEFAULT NULL,
+    color VARCHAR(7) DEFAULT '#3b82f6',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_active (user_id, is_active),
+    INDEX idx_deadline (deadline)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
 -- DATABASE VIEWS
 -- ============================================
 

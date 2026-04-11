@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Target Menabung - UANGIN</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="navbar-container">
+      <a href="/dashboard" class="navbar-brand">
+        <div class="navbar-brand-icon">💰</div>
+        <span>UANGIN</span>
+      </a>
+      <button class="hamburger-toggle" id="navbarToggle">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="navbar-menu" id="navbarMenu">
+        <a href="/dashboard" class="navbar-item">Dashboard</a>
+        <button class="navbar-item income" onclick="window.location.href='/pendapatan'">Pendapatan</button>
+        <button class="navbar-item expense" onclick="window.location.href='/pengeluaran'">Pengeluaran</button>
+        <a href="/laporan" class="navbar-item">Laporan</a>
+        <a href="/kalender" class="navbar-item">Kalender</a>
+        <a href="/goals" class="navbar-item active">Target</a>
+        <a href="/profil" class="navbar-item">Profil</a>
+        <div class="navbar-divider"></div>
+        <button class="navbar-item logout" id="logoutBtn">Logout</button>
+        <button class="theme-toggle" id="themeToggle" title="Toggle Dark Mode">🌙</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content" style="max-width: 900px;">
+    <!-- Header -->
+    <div class="flex items-center justify-between" style="margin-bottom: var(--space-6); flex-wrap: wrap; gap: var(--space-3);">
+      <div>
+        <h1 style="font-size: 1.5rem; font-weight: 700;">🎯 Target Menabung</h1>
+        <p class="text-muted" style="font-size: 0.875rem;">Pantau progres target keuangan Anda</p>
+      </div>
+      <button class="btn btn-primary" onclick="showAddGoalModal()">+ Tambah Target</button>
+    </div>
+
+    <!-- Goals Grid -->
+    <div id="goalsList" class="grid" style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-4);"></div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="empty-state hidden">
+      <div class="empty-state-icon">🎯</div>
+      <h3 class="empty-state-title">Belum ada target</h3>
+      <p class="empty-state-text">Mulai buat target menabung untuk memotivasi diri Anda</p>
+      <button class="btn btn-primary" onclick="showAddGoalModal()">+ Tambah Target</button>
+    </div>
+  </main>
+
+  <!-- Add/Edit Goal Modal -->
+  <div class="modal-backdrop" id="goalModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="goalModalTitle">Tambah Target</h3>
+        <button class="modal-close" onclick="closeGoalModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="goalForm">
+          <input type="hidden" id="goalId">
+          <div class="form-group">
+            <label class="form-label">Nama Target <span class="required">*</span></label>
+            <input type="text" id="goalName" class="form-input" placeholder="Contoh: Tabungan iPhone" required>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="form-group">
+              <label class="form-label">Icon</label>
+              <input type="text" id="goalIcon" class="form-input" placeholder="🎯" value="🎯">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Warna</label>
+              <input type="color" id="goalColor" class="form-input" value="#3b82f6" style="height: 42px; padding: 0.25rem;">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Target Jumlah <span class="required">*</span></label>
+            <input type="text" id="goalAmount" class="form-input" placeholder="1000000" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Batas Waktu <span class="optional">(opsional)</span></label>
+            <input type="date" id="goalDeadline" class="form-input">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeGoalModal()">Batal</button>
+        <button class="btn btn-primary" id="saveGoalBtn">💾 Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Progress Modal -->
+  <div class="modal-backdrop" id="progressModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Tambah Progres</h3>
+        <button class="modal-close" onclick="closeProgressModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted" style="margin-bottom: var(--space-4);" id="progressGoalName"></p>
+        <div class="form-group">
+          <label class="form-label">Jumlah <span class="required">*</span></label>
+          <input type="text" id="progressAmount" class="form-input" placeholder="500000">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeProgressModal()">Batal</button>
+        <button class="btn btn-success" id="saveProgressBtn">💰 Tambah</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/utils.js"></script>
+  <script src="/js/goals.js"></script>
+</body>
+</html>

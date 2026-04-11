@@ -22,6 +22,7 @@ const exportRoutes = require('./routes/exportRoutes');
 const tagRoutes = require('./routes/tagRoutes');
 const todoRoutes = require('./routes/todoRoutes');
 const importRoutes = require('./routes/importRoutes');
+const goalRoutes = require('./routes/goalRoutes');
 
 // Initialize Express app
 const app = express();
@@ -128,6 +129,7 @@ app.use('/api/export', exportLimiter, exportRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/todos', todoRoutes);
 app.use('/api/import', importRoutes);
+app.use('/api/goals', goalRoutes);
 
 // Serve frontend pages
 app.get('/', (req, res) => {
@@ -156,6 +158,10 @@ app.get('/kalender', (req, res) => {
 
 app.get('/profil', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'frontend', 'pages', 'profil.html'));
+});
+
+app.get('/goals', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'frontend', 'pages', 'goals.html'));
 });
 
 app.get('/login', (req, res) => {
