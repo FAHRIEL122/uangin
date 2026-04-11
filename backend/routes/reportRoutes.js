@@ -10,5 +10,7 @@ router.get('/transactions', reportController.getTransactionList);
 router.get('/categories', reportController.getCategoryBreakdown);
 router.get('/budget', reportController.getBudgetStatus);
 router.get('/insights', reportController.getInsights);
+router.get('/monthly-trend', reportController.getMonthlyTrend);
+router.get('/top-expenses', reportController.getTopExpenses);
 
 module.exports = router;

@@ -68,21 +68,21 @@ async function getTransactionList(req, res) {
   try {
     const userId = req.user.userId;
     const { month, year, type } = req.query;
-    
+
     const now = new Date();
     const targetMonth = month ? parseInt(month) : now.getMonth() + 1;
     const targetYear = year ? parseInt(year) : now.getFullYear();
-    
+
     let typeFilter = '';
     const params = [userId, targetMonth, targetYear];
-    
+
     if (type && ['income', 'expense'].includes(type)) {
       typeFilter = ' AND t.type = ?';
       params.push(type);
     }
-    
+
     const [transactions] = await pool.query(
-      `SELECT 
+      `SELECT
         t.id,
         t.type,
         t.amount,
@@ -101,12 +101,90 @@ async function getTransactionList(req, res) {
       ORDER BY t.transaction_date DESC, t.created_at DESC`,
       params
     );
-    
+
     return success(res, 'Daftar transaksi berhasil diambil', transactions);
-    
+
   } catch (err) {
     console.error('Get transaction list error:', err.message);
     return error(res, 'Terjadi kesalahan saat mengambil daftar transaksi', 500);
+  }
+}
+
+// Monthly trend data
+async function getMonthlyTrend(req, res) {
+  try {
+    const userId = req.user.userId;
+    const { year } = req.query;
+
+    const targetYear = year ? parseInt(year) : new Date().getFullYear();
+
+    const [trendData] = await pool.query(
+      `SELECT
+        MONTH(transaction_date) as month,
+        SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as income,
+        SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense
+      FROM transactions
+      WHERE user_id = ?
+        AND YEAR(transaction_date) = ?
+      GROUP BY MONTH(transaction_date)
+      ORDER BY month`,
+      [userId, targetYear]
+    );
+
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    
+    // Fill in missing months with 0
+    const result = monthNames.map((name, index) => {
+      const monthData = trendData.find(t => t.month === index + 1);
+      return {
+        month_name: name,
+        month: index + 1,
+        income: monthData ? parseFloat(monthData.income) : 0,
+        expense: monthData ? parseFloat(monthData.expense) : 0
+      };
+    });
+
+    return success(res, 'Trend bulanan berhasil diambil', result);
+
+  } catch (err) {
+    console.error('Get monthly trend error:', err.message);
+    return error(res, 'Terjadi kesalahan saat mengambil trend bulanan', 500);
+  }
+}
+
+// Top expenses
+async function getTopExpenses(req, res) {
+  try {
+    const userId = req.user.userId;
+    const { month, year, limit = 5 } = req.query;
+
+    const targetMonth = month ? parseInt(month) : new Date().getMonth() + 1;
+    const targetYear = year ? parseInt(year) : new Date().getFullYear();
+
+    const [expenses] = await pool.query(
+      `SELECT
+        t.id,
+        t.amount,
+        t.description,
+        t.transaction_date,
+        c.name as category_name,
+        c.icon as category_icon
+      FROM transactions t
+      LEFT JOIN categories c ON t.category_id = c.id
+      WHERE t.user_id = ?
+        AND t.type = 'expense'
+        AND MONTH(t.transaction_date) = ?
+        AND YEAR(t.transaction_date) = ?
+      ORDER BY t.amount DESC
+      LIMIT ?`,
+      [userId, targetMonth, targetYear, parseInt(limit)]
+    );
+
+    return success(res, 'Top pengeluaran berhasil diambil', expenses);
+
+  } catch (err) {
+    console.error('Get top expenses error:', err.message);
+    return error(res, 'Terjadi kesalahan saat mengambil top pengeluaran', 500);
   }
 }
 
@@ -337,5 +415,7 @@ module.exports = {
   getTransactionList,
   getCategoryBreakdown,
   getBudgetStatus,
-  getInsights
+  getInsights,
+  getMonthlyTrend,
+  getTopExpenses
 };
