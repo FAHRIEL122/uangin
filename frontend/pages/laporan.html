@@ -42,53 +42,66 @@
         <h1 style="font-size: 1.5rem; font-weight: 700;">Laporan Keuangan</h1>
         <p class="text-muted" style="font-size: 0.875rem;">Analisis dan insight keuangan Anda</p>
       </div>
-      <div class="flex items-center gap-3">
-        <select id="monthSelect" class="form-select" style="width: auto; min-width: 120px;"></select>
-        <select id="yearSelect" class="form-select" style="width: auto; min-width: 100px;"></select>
+      <div class="flex items-center gap-2">
+        <select id="monthSelect" class="form-select" style="width: auto; min-width: 110px;"></select>
+        <select id="yearSelect" class="form-select" style="width: auto; min-width: 90px;"></select>
         <button class="btn btn-primary" id="exportBtn">📥 Export</button>
+      </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="summary-grid" style="margin-bottom: var(--space-6);">
+      <div class="stat-card income">
+        <div class="stat-card-icon">📈</div>
+        <div class="stat-card-label">Total Pendapatan</div>
+        <div class="stat-card-value" id="totalIncome">Rp 0</div>
+        <div class="stat-card-trend" id="incomeCount">0 transaksi</div>
+      </div>
+      <div class="stat-card expense">
+        <div class="stat-card-icon">📉</div>
+        <div class="stat-card-label">Total Pengeluaran</div>
+        <div class="stat-card-value" id="totalExpense">Rp 0</div>
+        <div class="stat-card-trend" id="expenseCount">0 transaksi</div>
+      </div>
+      <div class="stat-card balance">
+        <div class="stat-card-icon">💎</div>
+        <div class="stat-card-label">Saldo Bersih</div>
+        <div class="stat-card-value" id="netBalance">Rp 0</div>
+        <div class="stat-card-trend" id="balanceStatus">Seimbang</div>
       </div>
     </div>
 
     <!-- Tabs -->
     <div class="tabs">
-      <button class="tab active" data-tab="summary">Ringkasan</button>
+      <button class="tab active" data-tab="overview">Ringkasan</button>
       <button class="tab" data-tab="transactions">Transaksi</button>
       <button class="tab" data-tab="categories">Kategori</button>
       <button class="tab" data-tab="budget">Budget</button>
     </div>
 
-    <!-- Summary Tab -->
-    <div class="tab-pane active" id="summary-tab">
-      <!-- Summary Cards -->
-      <div class="summary-grid" style="margin-bottom: var(--space-6);">
-        <div class="stat-card income">
-          <div class="stat-card-icon">📈</div>
-          <div class="stat-card-label">Total Pendapatan</div>
-          <div class="stat-card-value" id="totalIncome">Rp 0</div>
-        </div>
-        <div class="stat-card expense">
-          <div class="stat-card-icon">📉</div>
-          <div class="stat-card-label">Total Pengeluaran</div>
-          <div class="stat-card-value" id="totalExpense">Rp 0</div>
-        </div>
-        <div class="stat-card balance">
-          <div class="stat-card-icon">💎</div>
-          <div class="stat-card-label">Saldo Bersih</div>
-          <div class="stat-card-value" id="netBalance">Rp 0</div>
-        </div>
-      </div>
-
-      <!-- Chart -->
-      <div class="grid" style="grid-template-columns: 2fr 1fr; gap: var(--space-4);">
+    <!-- Overview Tab -->
+    <div class="tab-pane active" id="overview-tab">
+      <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--space-4);">
+        <!-- Income Chart -->
         <div class="card">
-          <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: var(--space-4);">Distribusi Keuangan</h3>
-          <div class="chart-container">
+          <h3 style="font-size: 0.9rem; font-weight: 600; margin-bottom: var(--space-4);">Distribusi Keuangan</h3>
+          <div style="height: 250px; display: flex; align-items: center; justify-content: center;">
             <canvas id="financeChart"></canvas>
           </div>
         </div>
+        
+        <!-- Top Expenses -->
         <div class="card">
-          <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: var(--space-4);">Top 5 Pengeluaran</h3>
+          <h3 style="font-size: 0.9rem; font-weight: 600; margin-bottom: var(--space-4);">5 Pengeluaran Terbesar</h3>
           <div id="topExpenses" style="font-size: 0.875rem;"></div>
+        </div>
+      </div>
+
+      <!-- Monthly Trend -->
+      <div class="card" style="margin-top: var(--space-4);">
+        <h3 style="font-size: 0.9rem; font-weight: 600; margin-bottom: var(--space-4);">Tren Bulanan</h3>
+        <div style="height: 200px;">
+          <canvas id="trendChart"></canvas>
         </div>
       </div>
     </div>
@@ -96,20 +109,17 @@
     <!-- Transactions Tab -->
     <div class="tab-pane" id="transactions-tab">
       <div class="card">
-        <div class="card-header">
-          <h3 class="card-title">Daftar Transaksi</h3>
-        </div>
         <div class="filter-bar">
           <input type="text" id="reportSearchInput" class="filter-input" placeholder="Cari transaksi...">
-          <select id="reportTypeFilter" class="filter-input" style="max-width: 150px;">
+          <select id="reportTypeFilter" class="filter-input" style="max-width: 140px;">
             <option value="">Semua Tipe</option>
             <option value="income">Pendapatan</option>
             <option value="expense">Pengeluaran</option>
           </select>
-          <select id="reportCategoryFilter" class="filter-input" style="max-width: 180px;">
+          <select id="reportCategoryFilter" class="filter-input" style="max-width: 160px;">
             <option value="">Semua Kategori</option>
           </select>
-          <select id="reportSortBy" class="filter-input" style="max-width: 150px;">
+          <select id="reportSortBy" class="filter-input" style="max-width: 140px;">
             <option value="date-desc">Terbaru</option>
             <option value="date-asc">Terlama</option>
             <option value="amount-desc">Terbesar</option>
@@ -143,11 +153,11 @@
     <div class="tab-pane" id="categories-tab">
       <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--space-4);">
         <div class="card">
-          <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: var(--space-4);">📈 Pendapatan per Kategori</h3>
+          <h3 style="font-size: 0.9rem; font-weight: 600; margin-bottom: var(--space-4);">📈 Pendapatan per Kategori</h3>
           <div id="incomeCategories"></div>
         </div>
         <div class="card">
-          <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: var(--space-4);">📉 Pengeluaran per Kategori</h3>
+          <h3 style="font-size: 0.9rem; font-weight: 600; margin-bottom: var(--space-4);">📉 Pengeluaran per Kategori</h3>
           <div id="expenseCategories"></div>
         </div>
       </div>

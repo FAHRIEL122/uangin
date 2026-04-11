@@ -3,55 +3,31 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kalender Transaksi - UANGIN</title>
+  <title>Kalender - UANGIN</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="/css/style.css">
-  <link rel="stylesheet" href="/css/calendar.css">
 </head>
 <body>
   <!-- Navigation -->
   <nav class="navbar">
     <div class="navbar-container">
       <a href="/dashboard" class="navbar-brand">
-        <span class="brand-icon">💰</span>
-        <span class="brand-text">UANGIN</span>
+        <div class="navbar-brand-icon">💰</div>
+        <span>UANGIN</span>
       </a>
-      <button class="navbar-toggle" id="navbarToggle">
-        <span></span>
-        <span></span>
-        <span></span>
+      <button class="hamburger-toggle" id="navbarToggle">
+        <span></span><span></span><span></span>
       </button>
       <div class="navbar-menu" id="navbarMenu">
-        <a href="/dashboard" class="navbar-item">
-          <span class="item-icon">📊</span>
-          <span>Dashboard</span>
-        </a>
-        <a href="/pendapatan" class="navbar-item income">
-          <span class="item-icon">➕</span>
-          <span>Pendapatan</span>
-        </a>
-        <a href="/pengeluaran" class="navbar-item expense">
-          <span class="item-icon">➖</span>
-          <span>Pengeluaran</span>
-        </a>
-        <a href="/laporan" class="navbar-item">
-          <span class="item-icon">📈</span>
-          <span>Laporan</span>
-        </a>
-        <a href="/kalender" class="navbar-item active">
-          <span class="item-icon">📅</span>
-          <span>Kalender</span>
-        </a>
-        <a href="/profil" class="navbar-item">
-          <span class="item-icon">👤</span>
-          <span>Profil</span>
-        </a>
+        <a href="/dashboard" class="navbar-item">Dashboard</a>
+        <button class="navbar-item income" onclick="window.location.href='/pendapatan'">Pendapatan</button>
+        <button class="navbar-item expense" onclick="window.location.href='/pengeluaran'">Pengeluaran</button>
+        <a href="/laporan" class="navbar-item">Laporan</a>
+        <a href="/kalender" class="navbar-item active">Kalender</a>
+        <a href="/profil" class="navbar-item">Profil</a>
         <div class="navbar-divider"></div>
-        <button class="navbar-item logout" id="logoutBtn">
-          <span class="item-icon">🚪</span>
-          <span>Logout</span>
-        </button>
+        <button class="navbar-item logout" id="logoutBtn">Logout</button>
         <button class="theme-toggle" id="themeToggle" title="Toggle Dark Mode">🌙</button>
       </div>
     </div>
@@ -59,37 +35,83 @@
 
   <!-- Main Content -->
   <main class="main-content">
-    <div class="calendar-header">
+    <!-- Header -->
+    <div class="flex items-center justify-between" style="margin-bottom: var(--space-6); flex-wrap: wrap; gap: var(--space-3);">
       <div>
-        <h1>📅 Kalender Transaksi</h1>
-        <p>Lihat transaksi dalam tampilan kalender</p>
+        <h1 style="font-size: 1.5rem; font-weight: 700;">📅 Kalender</h1>
+        <p class="text-muted" style="font-size: 0.875rem;">Lihat transaksi dan tugas Anda</p>
       </div>
-      <div class="calendar-nav">
-        <button class="btn btn-ghost" id="prevMonth">
-          <span>◀</span> Sebelumnya
-        </button>
-        <h2 id="currentMonth"></h2>
-        <button class="btn btn-ghost" id="nextMonth">
-          Selanjutnya <span>▶</span>
-        </button>
+      <div class="flex items-center gap-2">
+        <button class="btn btn-ghost btn-sm" id="prevMonth">◀ Prev</button>
+        <h2 style="font-size: 1.1rem; font-weight: 600; min-width: 150px; text-align: center;" id="currentMonth"></h2>
+        <button class="btn btn-ghost btn-sm" id="nextMonth">Next ▶</button>
       </div>
     </div>
 
-    <!-- Calendar Grid -->
-    <div class="calendar-container">
-      <div class="calendar-grid" id="calendarGrid">
-        <!-- Calendar will be generated here -->
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" data-tab="calendar">Kalender</button>
+      <button class="tab" data-tab="todos">To-Do List</button>
+    </div>
+
+    <!-- Calendar Tab -->
+    <div class="tab-pane active" id="calendar-tab">
+      <!-- Calendar Grid -->
+      <div class="card">
+        <div class="calendar-grid" id="calendarGrid"></div>
+      </div>
+
+      <!-- Day Details -->
+      <div class="card" style="margin-top: var(--space-4);" id="dayDetails" class="hidden">
+        <div class="card-header">
+          <h3 class="card-title" id="selectedDate"></h3>
+        </div>
+        <div id="dayTransactions"></div>
+        <div id="daySummary" style="margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border);"></div>
       </div>
     </div>
 
-    <!-- Transaction Details -->
-    <div class="card transaction-details hidden" id="transactionDetails">
-      <div class="card-header">
-        <h3 id="selectedDate"></h3>
+    <!-- Todos Tab -->
+    <div class="tab-pane" id="todos-tab">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">📝 To-Do List</h3>
+          <button class="btn btn-primary btn-sm" onclick="showAddTodoModal()">+ Tambah</button>
+        </div>
+        
+        <!-- Add Todo Form -->
+        <form id="addTodoForm" style="display: none; margin-bottom: var(--space-4); padding: var(--space-4); background: var(--gray-50); border-radius: var(--radius);">
+          <div class="flex gap-2" style="flex-wrap: wrap;">
+            <input type="text" id="todoInput" class="form-input" placeholder="Tambah tugas baru..." style="flex: 1; min-width: 200px;" required>
+            <input type="date" id="todoDate" class="form-input" style="max-width: 160px;">
+            <select id="todoPriority" class="form-select" style="max-width: 130px;">
+              <option value="low">Rendah</option>
+              <option value="medium" selected>Sedang</option>
+              <option value="high">Tinggi</option>
+            </select>
+            <button type="submit" class="btn btn-primary">Simpan</button>
+            <button type="button" class="btn btn-ghost" onclick="hideAddTodoForm()">Batal</button>
+          </div>
+        </form>
+
+        <!-- Todo List -->
+        <div id="todoList"></div>
       </div>
-      <div id="dayTransactions"></div>
     </div>
   </main>
+
+  <!-- Day Detail Modal -->
+  <div class="modal-backdrop" id="dayModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="dayModalTitle"></h3>
+        <button class="modal-close" onclick="closeDayModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="dayModalContent"></div>
+      </div>
+    </div>
+  </div>
 
   <script src="/js/utils.js"></script>
   <script src="/js/calendar.js"></script>
