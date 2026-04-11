@@ -21,24 +21,24 @@ function togglePasswordVisibility(inputId) {
 // Expose globally
 window.togglePasswordVisibility = togglePasswordVisibility;
 
-// Redirect if already logged in
-redirectIfAuth();
-
-// Login form handler
+// ===== LOGIN =====
 const loginForm = document.getElementById('loginForm');
 if (loginForm) {
+  console.log('✓ Login form initialized');
   loginForm.addEventListener('submit', handleLogin);
 }
 
 async function handleLogin(e) {
   e.preventDefault();
 
-  // Clear errors and alerts
+  // Clear errors
   clearFormErrors();
   hideElement('loginError');
 
   const username = document.getElementById('username').value.trim();
   const password = document.getElementById('password').value;
+
+  console.log('🔐 Login attempt:', { username, hasPassword: !!password });
 
   // Validate
   let hasError = false;
@@ -54,6 +54,7 @@ async function handleLogin(e) {
   }
 
   if (hasError) {
+    console.log('❌ Login validation failed');
     showToast('Mohon lengkapi semua field', 'warning');
     return;
   }
@@ -61,16 +62,20 @@ async function handleLogin(e) {
   // Disable button
   const btn = document.getElementById('loginBtn');
   btn.disabled = true;
-  btn.innerHTML = '<span class="loading-spinner"></span> Masuk...';
+  btn.innerHTML = '<span class="loading-spinner"></span> Memproses...';
 
   try {
+    console.log('📡 Sending login request...');
     const response = await post('/auth/login', { username, password });
+    
+    console.log('✅ Login response:', response);
 
     // Save auth data
     saveAuthData(response.data.token, response.data.user);
 
     // Show success
-    showToast('Login berhasil! Selamat datang ' + (response.data.user.full_name || username), 'success');
+    const displayName = response.data.user?.full_name || username;
+    showToast(`Login berhasil! Selamat datang ${displayName}`, 'success');
 
     // Redirect to dashboard
     setTimeout(() => {
@@ -78,16 +83,19 @@ async function handleLogin(e) {
     }, 1000);
 
   } catch (error) {
+    console.error('❌ Login error:', error);
     showElement('loginError');
-    document.getElementById('loginErrorMessage').textContent = error.message || 'Login gagal';
+    document.getElementById('loginErrorMessage').textContent = error.message || 'Login gagal. Periksa username dan password Anda.';
+    showToast('Login gagal: ' + (error.message || 'Periksa kredensial Anda'), 'danger');
     btn.disabled = false;
-    btn.innerHTML = '<span>🔐</span> Masuk';
+    btn.innerHTML = 'Masuk';
   }
 }
 
-// Register form handler
+// ===== REGISTRATION =====
 const registerForm = document.getElementById('registerForm');
 if (registerForm) {
+  console.log('✓ Register form initialized');
   registerForm.addEventListener('submit', handleRegister);
 }
 
@@ -99,17 +107,19 @@ async function handleRegister(e) {
   hideElement('registerError');
   hideElement('registerSuccess');
 
+  const fullName = document.getElementById('fullName').value.trim();
   const username = document.getElementById('username').value.trim();
   const email = document.getElementById('email').value.trim();
-  const full_name = document.getElementById('fullName').value.trim();
   const password = document.getElementById('password').value;
   const confirmPassword = document.getElementById('confirmPassword').value;
+
+  console.log('📝 Register attempt:', { fullName, username, email, hasPassword: !!password });
 
   // Validate
   let hasError = false;
 
   // Validate full name
-  if (!full_name || full_name.length < 3) {
+  if (!fullName || fullName.length < 3) {
     showFormError('fullName', 'Nama lengkap minimal 3 karakter');
     hasError = true;
   }
@@ -151,28 +161,32 @@ async function handleRegister(e) {
   }
 
   if (hasError) {
+    console.log('❌ Register validation failed');
     showToast('Mohon periksa kembali data Anda', 'warning');
     return;
   }
-  
+
   // Disable button
   const btn = document.getElementById('registerBtn');
   btn.disabled = true;
-  btn.innerHTML = '<span class="loading-spinner"></span> Mendaftar...';
+  btn.innerHTML = '<span class="loading-spinner"></span> Memproses...';
 
   try {
-    const response = await post('/auth/register', { username, email, full_name, password });
+    console.log('📡 Sending register request...');
+    const response = await post('/auth/register', { username, email, full_name: fullName, password });
+    
+    console.log('✅ Register response:', response);
 
     // Show success
     showElement('registerSuccess');
     document.getElementById('registerSuccessMessage').textContent = 
-      '✅ Registrasi berhasil! Mengalihkan ke dashboard...';
+      '✅ Registrasi berhasil! Akun Anda telah dibuat. Mengalihkan ke dashboard...';
     
     // Save auth data
     saveAuthData(response.data.token, response.data.user);
 
     // Show success toast
-    showToast('Registrasi berhasil! Selamat datang ' + full_name, 'success');
+    showToast(`Registrasi berhasil! Selamat datang ${fullName}`, 'success');
 
     // Redirect to dashboard
     setTimeout(() => {
@@ -180,14 +194,18 @@ async function handleRegister(e) {
     }, 1500);
 
   } catch (error) {
+    console.error('❌ Register error:', error);
     showElement('registerError');
     document.getElementById('registerErrorMessage').textContent = error.message || 'Registrasi gagal';
+    showToast('Registrasi gagal: ' + (error.message || 'Terjadi kesalahan'), 'danger');
     btn.disabled = false;
-    btn.innerHTML = '<span>🚀</span> Daftar Sekarang';
+    btn.innerHTML = 'Daftar';
   }
 }
 
-// Helper: Show element
+// ===== HELPERS =====
+
+// Show element
 function showElement(id) {
   const element = document.getElementById(id);
   if (element) {
@@ -195,7 +213,7 @@ function showElement(id) {
   }
 }
 
-// Helper: Hide element
+// Hide element
 function hideElement(id) {
   const element = document.getElementById(id);
   if (element) {
